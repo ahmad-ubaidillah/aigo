@@ -311,7 +311,7 @@ make install  # Builds and installs to ~/.local/bin/aigo
 
 ```bash
 # Native Go - use this!
-go install github.com/ahmad-ubaidillah/aigo@latest
+go install github.com/ahmad-ubaidillah/aigo/cmd/aigo@latest
 ~/go/bin/aigo --version
 
 # OR using the install script (falls back to build if no release)

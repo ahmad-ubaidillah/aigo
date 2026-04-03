@@ -48,17 +48,18 @@ fallback_build() {
         exit 1
     fi
     
-    TEMP_DIR=$(mktemp -d)
-    git clone --depth 1 --branch main "https://github.com/${REPO}.git" "$TEMP_DIR" 2>/dev/null || {
-        echo "Error: Could not clone repository" >&2
-        exit 1
-    }
+    echo "Installing via go install..."
+    go install "github.com/${REPO}/cmd/aigo@latest"
+    INSTALL_PATH=$(go env GOPATH)/bin/$BINARY_NAME
     
-    cd "$TEMP_DIR"
-    mkdir -p "$INSTALL_DIR"
-    go build -o "$INSTALL_DIR/$BINARY_NAME" ./cmd/aigo
-    chmod +x "$INSTALL_DIR/$BINARY_NAME"
-    rm -rf "$TEMP_DIR"
+    if [ -f "$INSTALL_PATH" ]; then
+        mkdir -p "$INSTALL_DIR"
+        cp "$INSTALL_PATH" "$INSTALL_DIR/$BINARY_NAME"
+        chmod +x "$INSTALL_DIR/$BINARY_NAME"
+    else
+        echo "Error: go install failed" >&2
+        exit 1
+    fi
 }
 
 main() {
