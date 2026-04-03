@@ -318,6 +318,22 @@ go install github.com/ahmad-ubaidillah/aigo/cmd/aigo@latest
 curl -fsSL https://raw.githubusercontent.com/ahmad-ubaidillah/aigo/main/scripts/install.sh | bash
 ```
 
+### Uninstall
+
+```bash
+# If installed via go install
+rm -f ~/go/bin/aigo
+
+# If installed via install script or make install
+rm -f ~/.local/bin/aigo
+
+# If installed system-wide (requires sudo)
+sudo rm -f /usr/local/bin/aigo
+
+# Optionally remove config and data
+rm -rf ~/.aigo
+```
+
 ### First Run
 
 On first run, Aigo will automatically launch the setup wizard if no config is found:
