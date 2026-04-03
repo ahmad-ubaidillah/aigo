@@ -71,6 +71,12 @@ func (w *SetupWizard) setupCLI(ctx context.Context) error {
 
 	w.configureTokenBudget()
 
+	if err := w.configureWorkspace(); err != nil {
+		return fmt.Errorf("configure workspace: %w", err)
+	}
+
+	w.configureGateway()
+
 	w.complete = true
 
 	fmt.Println()
@@ -210,6 +216,126 @@ func (w *SetupWizard) configureTokenBudget() {
 	fmt.Printf("  Budget: %d tokens\n", w.cfg.TokenBudget.TotalBudget)
 	fmt.Printf("  Warning at: %.0f%%\n", w.cfg.TokenBudget.WarningThreshold*100)
 	fmt.Printf("  Critical at: %.0f%%\n", w.cfg.TokenBudget.CriticalThreshold*100)
+}
+
+func (w *SetupWizard) configureWorkspace() error {
+	fmt.Println()
+	fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")).Render("=== Workspace Configuration ==="))
+	fmt.Println("Set your default workspace directory.")
+	fmt.Println()
+
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Workspace directory (press Enter for current directory): ")
+	workspaceInput, _ := reader.ReadString('\n')
+	workspaceInput = strings.TrimSpace(workspaceInput)
+
+	if workspaceInput == "" {
+		wd, _ := os.Getwd()
+		w.cfg.Workspace = wd
+	} else {
+		if _, err := os.Stat(workspaceInput); os.IsNotExist(err) {
+			fmt.Printf("Directory does not exist. Create it? (y/n): ")
+			createInput, _ := reader.ReadString('\n')
+			createInput = strings.TrimSpace(strings.ToLower(createInput))
+			if createInput == "y" || createInput == "yes" {
+				if err := os.MkdirAll(workspaceInput, 0755); err != nil {
+					return fmt.Errorf("create directory: %w", err)
+				}
+				w.cfg.Workspace = workspaceInput
+			}
+		} else {
+			w.cfg.Workspace = workspaceInput
+		}
+	}
+
+	fmt.Printf("  Workspace: %s\n", w.cfg.Workspace)
+	return nil
+}
+
+func (w *SetupWizard) configureGateway() {
+	fmt.Println()
+	fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")).Render("=== Gateway Configuration (Optional) ==="))
+	fmt.Println("Connect messaging platforms: Telegram, Discord, Slack, WhatsApp.")
+	fmt.Println()
+
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Enable gateway? (y/n): ")
+	gatewayInput, _ := reader.ReadString('\n')
+	gatewayInput = strings.TrimSpace(strings.ToLower(gatewayInput))
+
+	if gatewayInput != "y" && gatewayInput != "yes" {
+		w.cfg.Gateway.Enabled = false
+		return
+	}
+
+	w.cfg.Gateway.Enabled = true
+
+	platforms := []string{"telegram", "discord", "slack", "whatsapp"}
+	fmt.Println("Available platforms:")
+	for i, p := range platforms {
+		fmt.Printf("  %d. %s\n", i+1, p)
+	}
+	fmt.Println()
+
+	fmt.Print("Select platforms (comma-separated, e.g. 1,2): ")
+	platformInput, _ := reader.ReadString('\n')
+	platformInput = strings.TrimSpace(platformInput)
+
+	w.cfg.Gateway.Platforms = nil
+
+	for _, p := range strings.Split(platformInput, ",") {
+		p = strings.TrimSpace(p)
+		idx := 0
+		if _, err := fmt.Sscanf(p, "%d", &idx); err == nil && idx > 0 && idx <= len(platforms) {
+			w.cfg.Gateway.Platforms = append(w.cfg.Gateway.Platforms, platforms[idx-1])
+		}
+	}
+
+	if len(w.cfg.Gateway.Platforms) == 0 {
+		fmt.Println("  No platforms selected.")
+		return
+	}
+
+	for _, plat := range w.cfg.Gateway.Platforms {
+		fmt.Printf("\nConfiguring %s:\n", plat)
+		switch plat {
+		case "telegram":
+			fmt.Print("  Bot Token: ")
+			tokenInput, _ := reader.ReadString('\n')
+			w.cfg.Gateway.Telegram = types.TelegramConfig{
+				BotToken: strings.TrimSpace(tokenInput),
+			}
+		case "discord":
+			fmt.Print("  Bot Token: ")
+			tokenInput, _ := reader.ReadString('\n')
+			w.cfg.Gateway.Discord = types.DiscordConfig{
+				BotToken: strings.TrimSpace(tokenInput),
+			}
+		case "slack":
+			fmt.Print("  Bot Token: ")
+			tokenInput, _ := reader.ReadString('\n')
+			fmt.Print("  Signing Secret: ")
+			secretInput, _ := reader.ReadString('\n')
+			w.cfg.Gateway.Slack = types.SlackConfig{
+				BotToken:      strings.TrimSpace(tokenInput),
+				SigningSecret: strings.TrimSpace(secretInput),
+			}
+		case "whatsapp":
+			fmt.Print("  Phone Number ID: ")
+			phoneInput, _ := reader.ReadString('\n')
+			fmt.Print("  Access Token: ")
+			tokenInput, _ := reader.ReadString('\n')
+			w.cfg.Gateway.WhatsApp = types.WhatsAppConfig{
+				PhoneNumberID: strings.TrimSpace(phoneInput),
+				AccessToken:   strings.TrimSpace(tokenInput),
+			}
+		}
+	}
+
+	fmt.Println()
+	fmt.Printf("Gateway enabled with: %s\n", strings.Join(w.cfg.Gateway.Platforms, ", "))
 }
 
 func (w *SetupWizard) IsComplete() bool {

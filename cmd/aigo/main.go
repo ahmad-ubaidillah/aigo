@@ -36,7 +36,7 @@ Usage:
   aigo budget           Show token usage and alerts
   aigo doctor           Diagnose issues`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if cmd.Name() == "help" || cmd.Name() == "completion" {
+			if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "setup" {
 				return nil
 			}
 			if !cli.ConfigExists() {
@@ -45,6 +45,12 @@ Usage:
 				if err := wizard.Run(); err != nil {
 					fmt.Printf("Setup cancelled or failed: %v\n", err)
 					fmt.Println("You can run 'aigo setup' later to configure manually.")
+				} else if wizard.IsComplete() {
+					cfg := wizard.GetConfig()
+					configPath := cli.GetDefaultConfigPath()
+					if err := cli.SaveConfig(*cfg, configPath); err == nil {
+						fmt.Printf("✓ Config saved to: %s\n", configPath)
+					}
 				}
 			}
 			return nil

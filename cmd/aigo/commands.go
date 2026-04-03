@@ -15,6 +15,7 @@ import (
 	"github.com/ahmad-ubaidillah/aigo/internal/intent"
 	"github.com/ahmad-ubaidillah/aigo/internal/memory"
 	"github.com/ahmad-ubaidillah/aigo/internal/opencode"
+	"github.com/ahmad-ubaidillah/aigo/internal/setup"
 	"github.com/spf13/cobra"
 )
 
@@ -432,20 +433,22 @@ func setupCmd() *cobra.Command {
 		Use:   "setup",
 		Short: "First-run setup wizard",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Aigo Setup Wizard")
-			fmt.Println("==================")
-			fmt.Println()
-			fmt.Println("1. Model Selection")
-			fmt.Println("   Default model: opencode/qwen3.6-plus-free")
-			fmt.Println("   Intent model: gpt-4o-mini")
-			fmt.Println()
-			fmt.Println("2. Workspace")
-			fmt.Println("   Set your default workspace directory.")
-			fmt.Println()
-			fmt.Println("3. Gateway Setup (optional)")
-			fmt.Println("   Connect Telegram, Discord, Slack, or WhatsApp.")
-			fmt.Println()
-			fmt.Println("Setup wizard implementation coming in Phase 7.")
+			wizard := setup.NewSetupWizard()
+			if err := wizard.Run(); err != nil {
+				return fmt.Errorf("setup wizard: %w", err)
+			}
+
+			cfg := wizard.GetConfig()
+			if !wizard.IsComplete() {
+				return nil
+			}
+
+			configPath := cli.GetDefaultConfigPath()
+			if err := cli.SaveConfig(*cfg, configPath); err != nil {
+				return fmt.Errorf("save config: %w", err)
+			}
+
+			fmt.Printf("\n✓ Config saved to: %s\n", configPath)
 			return nil
 		},
 	}

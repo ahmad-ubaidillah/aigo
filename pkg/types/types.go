@@ -136,6 +136,7 @@ type Config struct {
 	Memory      MemoryConfig      `yaml:"memory"`
 	Web         WebConfig         `yaml:"web"`
 	TokenBudget TokenBudgetConfig `yaml:"token_budget"`
+	Workspace   string            `yaml:"workspace"` // Default workspace directory
 }
 
 // ModelConfig holds model selection settings.
@@ -156,6 +157,34 @@ type OpenCodeConfig struct {
 type GatewayConfig struct {
 	Enabled   bool     `yaml:"enabled"`
 	Platforms []string `yaml:"platforms"`
+
+	// Platform-specific configs
+	Telegram TelegramConfig `yaml:"telegram"`
+	Discord  DiscordConfig  `yaml:"discord"`
+	Slack    SlackConfig    `yaml:"slack"`
+	WhatsApp WhatsAppConfig `yaml:"whatsapp"`
+}
+
+// TelegramConfig holds Telegram bot settings.
+type TelegramConfig struct {
+	BotToken string `yaml:"bot_token"`
+}
+
+// DiscordConfig holds Discord bot settings.
+type DiscordConfig struct {
+	BotToken string `yaml:"bot_token"`
+}
+
+// SlackConfig holds Slack bot settings.
+type SlackConfig struct {
+	BotToken      string `yaml:"bot_token"`
+	SigningSecret string `yaml:"signing_secret"`
+}
+
+// WhatsAppConfig holds WhatsApp business API settings.
+type WhatsAppConfig struct {
+	PhoneNumberID string `yaml:"phone_number_id"`
+	AccessToken   string `yaml:"access_token"`
 }
 
 // MemoryConfig holds context memory settings.
