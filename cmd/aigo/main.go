@@ -10,6 +10,8 @@ import (
 
 const version = "1.5.0"
 
+var verbose bool
+
 func main() {
 	var configPath string
 
@@ -22,7 +24,7 @@ With OMO superpowers. Orchestrates OpenCode for coding, handles everything else 
 V1.5 Never-Die Architecture:
 - Multi-Provider LLM Router with automatic fallback
 - Token Budget Manager with cross-channel alerts
-- Agent Roles: Aizen, Atlas, Cody, Nova, Testa
+- Agent Roles: Aigo, Atlas, Cody, Nova, Testa
 
 Usage:
   aigo                  Interactive TUI mode
@@ -30,7 +32,6 @@ Usage:
   aigo setup            First-run setup (install OpenCode + inject superpowers)
   aigo providers        List configured LLM providers
   aigo budget           Show token usage and alerts
-  aigo agents           List available agent roles
   aigo doctor           Diagnose issues`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, err := cli.LoadConfig(configPath)
@@ -38,22 +39,27 @@ Usage:
 				return fmt.Errorf("load config: %w", err)
 			}
 			fmt.Println("Aigo v" + version + " - Never-Die Architecture")
+			if verbose {
+				fmt.Println("Verbose mode enabled")
+			}
 			fmt.Println()
 			fmt.Println("V1.5 Features:")
 			fmt.Println("  aigo providers        # List configured LLM providers")
 			fmt.Println("  aigo budget           # Show token usage")
 			fmt.Println("  aigo agents           # List agent roles")
 			fmt.Println("  aigo install opencode # Install OpenCode")
+			fmt.Println("  aigo completion bash  # Generate shell completion")
 			fmt.Println()
 			fmt.Println("Quick start:")
 			fmt.Println("  aigo setup           # Install OpenCode + OMO superpowers")
 			fmt.Println("  aigo run \"fix bug\" # Execute a task")
-			fmt.Println("  aigo tui           # Interactive mode")
+			fmt.Println("  aigo tui             # Interactive mode")
 			return nil
 		},
 	}
 
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "", "config file path")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	rootCmd.Version = version
 
 	rootCmd.AddCommand(runCmd())
