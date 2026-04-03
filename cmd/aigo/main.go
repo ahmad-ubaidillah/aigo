@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/ahmad-ubaidillah/aigo/internal/cli"
+	"github.com/ahmad-ubaidillah/aigo/internal/setup"
+	"github.com/ahmad-ubaidillah/aigo/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -33,6 +35,20 @@ Usage:
   aigo providers        List configured LLM providers
   aigo budget           Show token usage and alerts
   aigo doctor           Diagnose issues`,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if cmd.Name() == "help" || cmd.Name() == "completion" {
+				return nil
+			}
+			if !cli.ConfigExists() {
+				fmt.Println("No config found. Running first-time setup...")
+				wizard := setup.NewSetupWizard()
+				if err := wizard.Run(); err != nil {
+					fmt.Printf("Setup cancelled or failed: %v\n", err)
+					fmt.Println("You can run 'aigo setup' later to configure manually.")
+				}
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_, err := cli.LoadConfig(configPath)
 			if err != nil {
@@ -44,16 +60,17 @@ Usage:
 			}
 			fmt.Println()
 			fmt.Println("V1.5 Features:")
-			fmt.Println("  aigo providers        # List configured LLM providers")
-			fmt.Println("  aigo budget           # Show token usage")
-			fmt.Println("  aigo agents           # List agent roles")
+			fmt.Println("  aigo tui             # Interactive TUI mode")
+			fmt.Println("  aigo providers       # List configured LLM providers")
+			fmt.Println("  aigo budget          # Show token usage")
+			fmt.Println("  aigo agents          # List agent roles")
 			fmt.Println("  aigo install opencode # Install OpenCode")
-			fmt.Println("  aigo completion bash  # Generate shell completion")
+			fmt.Println("  aigo completion bash # Generate shell completion")
 			fmt.Println()
 			fmt.Println("Quick start:")
-			fmt.Println("  aigo setup           # Install OpenCode + OMO superpowers")
+			fmt.Println("  aigo tui             # Start interactive mode")
+			fmt.Println("  aigo setup           # Re-run setup wizard")
 			fmt.Println("  aigo run \"fix bug\" # Execute a task")
-			fmt.Println("  aigo tui             # Interactive mode")
 			return nil
 		},
 	}
@@ -82,7 +99,20 @@ Usage:
 	doctorCmd().Flags().Bool("auto-install", false, "Automatically install missing dependencies")
 	setupCmd().Flags().Bool("force", false, "Force reinstall even if already installed")
 
+	rootCmd.AddCommand(tuiCmd())
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
+	}
+}
+
+func tuiCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "tui",
+		Short: "Start interactive TUI mode",
+		Long:  "Opens the interactive terminal UI for Aigo",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return tui.Run()
+		},
 	}
 }

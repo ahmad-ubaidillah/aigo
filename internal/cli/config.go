@@ -258,6 +258,7 @@ func LoadConfig(configPath string) (types.Config, error) {
 
 	path, err := resolveConfigPath(configPath)
 	if err != nil {
+		// Config not found - will trigger auto-setup in main.go
 		return cfg, nil
 	}
 
@@ -271,6 +272,16 @@ func LoadConfig(configPath string) (types.Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// ConfigExists checks if a config file exists at any of the standard paths.
+func ConfigExists() bool {
+	for _, p := range ConfigPaths() {
+		if _, err := os.Stat(p); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func SaveConfig(cfg types.Config, path string) error {

@@ -307,6 +307,27 @@ cd aigo
 make install  # Builds and installs to ~/.local/bin/aigo
 ```
 
+### One-liner Installation (Recommended)
+
+```bash
+# Native Go - use this!
+go install github.com/ahmad-ubaidillah/aigo@latest
+~/go/bin/aigo --version
+
+# OR using the install script (falls back to build if no release)
+curl -fsSL https://raw.githubusercontent.com/ahmad-ubaidillah/aigo/main/scripts/install.sh | bash
+```
+
+### First Run
+
+On first run, Aigo will automatically launch the setup wizard if no config is found:
+
+```bash
+aigo              # Auto-trigger setup if needed
+aigo tui          # Start interactive TUI mode
+aigo setup        # Re-run setup wizard anytime
+```
+
 ### Docker (Coming Soon)
 
 ```bash

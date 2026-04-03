@@ -1,10 +1,39 @@
-.PHONY: build run test clean tidy build-linux build-darwin-arm64 build-darwin-amd64 build-all
+.PHONY: build run test clean tidy build-linux build-darwin-arm64 build-darwin-amd64 build-all install install-system uninstall go-install
 
 # Build the binary
 build:
 	@echo "Building aigo..."
 	@go build -o dist/aigo ./cmd/aigo
 	@echo "Done: dist/aigo"
+
+# Install using go install (native Go)
+go-install:
+	@echo "Installing aigo via go install..."
+	@go install ./cmd/aigo
+	@echo "Installed: $$(which aigo)"
+
+# Install to ~/.local/bin (shell script alternative)
+install:
+	@echo "Installing aigo to ~/.local/bin..."
+	@mkdir -p ~/.local/bin
+	@go build -o ~/.local/bin/aigo ./cmd/aigo
+	@echo "Installed: ~/.local/bin/aigo"
+	@echo "Make sure ~/.local/bin is in your PATH:"
+	@echo "  export PATH=\"$$HOME/.local/bin:$$PATH\""
+	@echo "Add this to your ~/.bashrc or ~/.zshrc to persist."
+
+# Install to /usr/local/bin (requires sudo)
+install-system:
+	@echo "Installing aigo to /usr/local/bin (requires sudo)..."
+	@go build -o dist/aigo ./cmd/aigo
+	@sudo cp dist/aigo /usr/local/bin/aigo
+	@echo "Installed: /usr/local/bin/aigo"
+
+# Uninstall from ~/.local/bin
+uninstall:
+	@echo "Uninstalling aigo from ~/.local/bin..."
+	@rm -f ~/.local/bin/aigo
+	@echo "Uninstalled."
 
 # Cross-compile: linux-amd64
 build-linux:
