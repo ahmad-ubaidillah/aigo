@@ -29,3 +29,6 @@ coverage.out
 
 # Config (local overrides)
 .aigo/config.local.yaml
+
+# External references (not part of this repo)
+hermes/
