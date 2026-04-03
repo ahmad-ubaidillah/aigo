@@ -1,0 +1,39 @@
+model:
+  # Default model for general tasks and conversation
+  default: "opencode/qwen3.6-plus-free"
+  # Model for coding tasks (delegated to OpenCode)
+  coding: "auto"
+  # Cheap model for intent classification
+  intent: "gpt-4o-mini"
+
+opencode:
+  # Path to opencode binary (leave empty for auto-detect)
+  binary: ""
+  # Timeout in seconds for OpenCode tasks
+  timeout: 300
+  # Maximum turns per OpenCode session
+  max_turns: 50
+
+gateway:
+  # Enable gateway mode (listen for incoming messages)
+  enabled: false
+  # Platforms to connect: telegram, discord, slack, whatsapp
+  platforms: []
+
+memory:
+  # Maximum L0 (abstract) items — always in prompt
+  max_l0_items: 20
+  # Maximum L1 (overview) items — loaded when relevant
+  max_l1_items: 50
+  # Auto-compress conversation history after N turns
+  auto_compress: true
+
+web:
+  # Enable web GUI
+  enabled: false
+  # Port for web server
+  port: ":8080"
+  auth:
+    enabled: false
+    username: "admin"
+    password: ""

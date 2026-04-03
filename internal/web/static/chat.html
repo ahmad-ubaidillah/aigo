@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aigo — Chat</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/">Dashboard</a>
+    <a href="/chat.html" class="active">Chat</a>
+    <a href="/agents.html">Agents</a>
+    <a href="/tasks.html">Tasks</a>
+    <a href="/channels.html">Channels</a>
+    <a href="/memory.html">Memory</a>
+    <a href="/settings.html">Settings</a>
+  </nav>
+
+  <div class="container" x-data="{
+    sessions: [], selected: '', messages: [], input: '', loading: false,
+    async loadSessions() { this.sessions = await (await fetch('/api/sessions')).json(); },
+    async loadMessages() {
+      if (!this.selected) return;
+      const data = await (await fetch('/api/sessions/' + this.selected)).json();
+      this.messages = data.messages || [];
+    },
+    async send() {
+      if (!this.input.trim() || !this.selected) return;
+      const msg = this.input; this.input = ''; this.loading = true;
+      this.messages.push({role:'user', content:msg});
+      try {
+        await fetch('/api/sessions/' + this.selected + '/messages', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({role:'user',content:msg})});
+        const data = await (await fetch('/api/sessions/' + this.selected)).json();
+        this.messages = data.messages || [];
+      } catch(e) { showToast(e.message,'error'); }
+      this.loading = false;
+    }
+  }" x-init="loadSessions()">
+    <div style="display:grid;grid-template-columns:250px 1fr;gap:1rem;height:calc(100vh - 100px)">
+      <div class="card">
+        <h3 class="card-title">Sessions</h3>
+        <select class="input" x-model="selected" @change="loadMessages()">
+          <option value="">Select session...</option>
+          <template x-for="s in sessions" :key="s.id"><option :value="s.id" x-text="s.name"></option></template>
+        </select>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column">
+        <div class="msg-list" x-ref="msglist">
+          <template x-for="m in messages" :key="m.id">
+            <div class="msg" :class="'msg-'+m.role"><span x-text="m.content"></span></div>
+          </template>
+          <p x-show="messages.length===0" class="text-muted">No messages yet.</p>
+        </div>
+        <div style="display:flex;gap:0.5rem;margin-top:auto;padding-top:1rem">
+          <input class="input" x-model="input" @keydown.enter="send()" placeholder="Type a message..." :disabled="loading">
+          <button class="btn btn-primary" @click="send()" :disabled="loading" x-text="loading?'Sending...':'Send'"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

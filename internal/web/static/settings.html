@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aigo — Settings</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/">Dashboard</a>
+    <a href="/chat.html">Chat</a>
+    <a href="/agents.html">Agents</a>
+    <a href="/tasks.html">Tasks</a>
+    <a href="/channels.html">Channels</a>
+    <a href="/memory.html">Memory</a>
+    <a href="/settings.html" class="active">Settings</a>
+  </nav>
+
+  <div class="container" x-data="{
+    config: {model:{default:'',coding:'',intent:''},opencode:{binary:'',timeout:300,max_turns:50},gateway:{enabled:false,platforms:[]},memory:{max_l0_items:20,max_l1_items:50,auto_compress:true},web:{enabled:false,port:':8080'}},
+    async load() { this.config = await (await fetch('/api/config')).json().catch(() => this.config); },
+    async save() {
+      await fetch('/api/config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(this.config)});
+      showToast('Settings saved');
+    }
+  }" x-init="load()">
+    <h2 style="margin-bottom:1rem">Settings</h2>
+
+    <div class="card settings-section">
+      <h3 class="card-title">Model</h3>
+      <div class="form-group"><label class="form-label">Default Model</label><input class="input" x-model="config.model.default"></div>
+      <div class="form-group"><label class="form-label">Coding Model</label><input class="input" x-model="config.model.coding"></div>
+      <div class="form-group"><label class="form-label">Intent Model</label><input class="input" x-model="config.model.intent"></div>
+    </div>
+
+    <div class="card settings-section">
+      <h3 class="card-title">OpenCode</h3>
+      <div class="form-group"><label class="form-label">Binary Path</label><input class="input" x-model="config.opencode.binary"></div>
+      <div style="display:flex;gap:1rem">
+        <div class="form-group" style="flex:1"><label class="form-label">Timeout (seconds)</label><input class="input" type="number" x-model.number="config.opencode.timeout"></div>
+        <div class="form-group" style="flex:1"><label class="form-label">Max Turns</label><input class="input" type="number" x-model.number="config.opencode.max_turns"></div>
+      </div>
+    </div>
+
+    <div class="card settings-section">
+      <h3 class="card-title">Memory</h3>
+      <div style="display:flex;gap:1rem">
+        <div class="form-group" style="flex:1"><label class="form-label">Max L0 Items</label><input class="input" type="number" x-model.number="config.memory.max_l0_items"></div>
+        <div class="form-group" style="flex:1"><label class="form-label">Max L1 Items</label><input class="input" type="number" x-model.number="config.memory.max_l1_items"></div>
+      </div>
+      <div class="form-group"><label><input type="checkbox" x-model="config.memory.auto_compress"> Auto Compress</label></div>
+    </div>
+
+    <div class="card settings-section">
+      <h3 class="card-title">Web</h3>
+      <div class="form-group"><label><input type="checkbox" x-model="config.web.enabled"> Enable Web GUI</label></div>
+      <div class="form-group"><label class="form-label">Port</label><input class="input" x-model="config.web.port"></div>
+    </div>
+
+    <button class="btn btn-primary" @click="save()">Save Settings</button>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

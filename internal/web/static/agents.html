@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aigo — Agents</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/">Dashboard</a>
+    <a href="/chat.html">Chat</a>
+    <a href="/agents.html" class="active">Agents</a>
+    <a href="/tasks.html">Tasks</a>
+    <a href="/channels.html">Channels</a>
+    <a href="/memory.html">Memory</a>
+    <a href="/settings.html">Settings</a>
+  </nav>
+
+  <div class="container" x-data="{ agents: [] }" x-init="fetch('/api/agents').then(r=>r.json()).then(d=>agents=d)">
+    <h2 style="margin-bottom:1rem">Agent Fleet</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1rem">
+      <template x-for="agent in agents" :key="agent.name">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <h3 class="card-title" x-text="agent.name"></h3>
+              <span class="badge" :class="agent.status==='idle'?'badge-success':'badge-warning'" x-text="agent.status"></span>
+            </div>
+            <span class="badge badge-info" x-text="agent.type"></span>
+          </div>
+          <div style="margin-top:1rem;display:flex;gap:0.5rem">
+            <button class="btn btn-sm btn-primary">Start</button>
+            <button class="btn btn-sm btn-danger">Stop</button>
+            <button class="btn btn-sm">Logs</button>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
