@@ -7,48 +7,70 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ahmad-ubaidillah/aigo/internal/cli"
-	"github.com/ahmad-ubaidillah/aigo/pkg/types"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
+var (
+	primary   = lipgloss.Color("#7C3AED")
+	secondary = lipgloss.Color("#10B981")
+	accent    = lipgloss.Color("#F59E0B")
+	warn      = lipgloss.Color("#EF4444")
+	dim       = lipgloss.Color("#6B7280")
+	text      = lipgloss.Color("#F9FAFB")
+	muted     = lipgloss.Color("#9CA3AF")
+
+	setupPanelStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(primary).
+			Padding(0, 1)
+
+	titleStyle = lipgloss.NewStyle().
+			Foreground(primary).Bold(true)
+
+	dimStyle = lipgloss.NewStyle().Foreground(dim)
+)
+
 type SetupModel struct {
 	step      int
-	steps     []string
+	view      string
+	input     string
+	inputMode bool
+
 	provider  string
 	apiKey    string
 	model     string
 	workspace string
-	providers []string
-	selected  int
-	input     string
-	inputMode bool
-	width     int
-	height    int
-	complete  bool
-	cfg       *types.Config
+	gateway   bool
+	platforms []string
+	opencode  bool
+
+	selected int
+	width    int
+	height   int
+	complete bool
 }
 
 var setupSteps = []string{
 	"Welcome",
-	"Select Provider",
-	"Configure API Key",
-	"Select Model",
-	"Set Workspace",
-	"Install OpenCode",
+	"Model",
+	"API Key",
+	"Workspace",
+	"OpenCode",
+	"Gateway",
 	"Complete",
 }
 
 func NewSetupModel() *SetupModel {
 	return &SetupModel{
 		step:      0,
-		steps:     setupSteps,
-		provider:  "openai",
-		providers: []string{"openai", "anthropic", "openrouter", "glm", "local"},
+		view:      "setup",
 		selected:  0,
-		complete:  false,
-		cfg:       &types.Config{},
+		provider:  "opencode",
+		workspace: "",
+		gateway:   false,
+		opencode:  true,
+		platforms: []string{},
 	}
 }
 
@@ -61,7 +83,6 @@ func (m *SetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		return m, nil
 
 	case tea.KeyMsg:
 		return m.handleKey(msg)
@@ -71,7 +92,7 @@ func (m *SetupModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *SetupModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "ctrl+c":
+	case "ctrl+c", "q":
 		return m, tea.Quit
 
 	case "enter":
@@ -94,19 +115,13 @@ func (m *SetupModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "up", "k":
 		if !m.inputMode && m.step == 1 {
-			m.selected = (m.selected - 1 + len(m.providers)) % len(m.providers)
+			m.selected = (m.selected - 1 + 5) % 5
 		}
 		return m, nil
 
 	case "down", "j":
 		if !m.inputMode && m.step == 1 {
-			m.selected = (m.selected + 1) % len(m.providers)
-		}
-		return m, nil
-
-	case "tab":
-		if !m.inputMode && m.step == 1 {
-			m.selected = (m.selected + 1) % len(m.providers)
+			m.selected = (m.selected + 1) % 5
 		}
 		return m, nil
 
@@ -116,30 +131,44 @@ func (m *SetupModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case " ":
+		if m.step == 4 {
+			m.opencode = !m.opencode
+		}
+		if m.step == 5 && !m.inputMode {
+			m.gateway = !m.gateway
+		}
+		return m, nil
+
 	default:
 		if m.inputMode && len(msg.String()) == 1 {
 			m.input += msg.String()
 		} else if !m.inputMode {
 			switch msg.String() {
 			case "1":
-				if m.step == 2 {
-					m.provider = "openai"
+				if m.step == 1 {
+					m.provider = "opencode"
+					m.model = "qwen3.6-plus-free"
 				}
 			case "2":
-				if m.step == 2 {
-					m.provider = "anthropic"
+				if m.step == 1 {
+					m.provider = "openai"
+					m.model = "gpt-4o"
 				}
 			case "3":
-				if m.step == 2 {
-					m.provider = "openrouter"
+				if m.step == 1 {
+					m.provider = "anthropic"
+					m.model = "claude-sonnet-4-20250514"
 				}
 			case "4":
-				if m.step == 2 {
-					m.provider = "glm"
+				if m.step == 1 {
+					m.provider = "openrouter"
+					m.model = "openai/gpt-4o"
 				}
 			case "5":
-				if m.step == 2 {
+				if m.step == 1 {
 					m.provider = "local"
+					m.model = "qwen2.5-coder"
 				}
 			}
 		}
@@ -152,32 +181,47 @@ func (m *SetupModel) handleEnter() (tea.Model, tea.Cmd) {
 	switch m.step {
 	case 0:
 		m.step++
+
 	case 1:
-		m.provider = m.providers[m.selected]
+		providers := []string{"opencode", "openai", "anthropic", "openrouter", "local"}
+		m.provider = providers[m.selected]
+		switch m.provider {
+		case "opencode":
+			m.model = "qwen3.6-plus-free"
+		case "openai":
+			m.model = "gpt-4o"
+		case "anthropic":
+			m.model = "claude-sonnet-4-20250514"
+		case "openrouter":
+			m.model = "openai/gpt-4o"
+		case "local":
+			m.model = "qwen2.5-coder"
+		}
 		m.step++
+
 	case 2:
-		if m.input != "" {
-			m.apiKey = m.input
-			m.input = ""
-		}
+		m.apiKey = m.input
+		m.input = ""
 		m.step++
+
 	case 3:
-		if m.input != "" {
-			m.model = m.input
-			m.input = ""
+		m.workspace = m.input
+		if m.workspace == "" {
+			wd, _ := os.Getwd()
+			m.workspace = wd
 		}
+		m.input = ""
 		m.step++
+
 	case 4:
-		if m.input != "" {
-			m.workspace = m.input
-			m.input = ""
-		}
 		m.step++
+
 	case 5:
 		m.step++
 		m.complete = true
-	case 6:
 		m.saveConfig()
+
+	case 6:
 		return m, tea.Quit
 	}
 	return m, nil
@@ -188,181 +232,284 @@ func (m *SetupModel) saveConfig() {
 	cfgDir := filepath.Join(home, ".aigo")
 	os.MkdirAll(cfgDir, 0755)
 
-	m.cfg.LLM.Provider = m.provider
-	m.cfg.LLM.APIKey = m.apiKey
-	if m.model != "" {
-		m.cfg.Model.Coding = m.model
-	}
-
 	cfgPath := filepath.Join(cfgDir, "config.yaml")
-	cli.SaveConfig(*m.cfg, cfgPath)
 
-	if m.workspace != "" {
-		workspaceFile := filepath.Join(cfgDir, ".workspace")
-		os.WriteFile(workspaceFile, []byte(m.workspace), 0644)
+	config := fmt.Sprintf(`llm:
+  provider: %s
+  api_key: %s
+  default_model: %s
+
+model:
+  default: %s
+  coding: auto
+  intent: gpt-4o-mini
+
+workspace: %s
+
+gateway:
+  enabled: %v
+  platforms: %v
+
+opencode:
+  binary: ""
+  timeout: 300
+  max_turns: 50
+
+memory:
+  max_l0_items: 20
+  max_l1_items: 50
+  auto_compress: true
+
+web:
+  enabled: false
+  port: :8080
+
+token_budget:
+  total_budget: 100000
+  warning_threshold: 0.7
+  critical_threshold: 0.9
+  alert_channels:
+    - log
+    - tui
+  per_provider: false
+`, m.provider, m.apiKey, m.model, m.model, m.workspace, m.gateway, m.platforms)
+
+	os.WriteFile(cfgPath, []byte(config), 0644)
+
+	if m.opencode {
+		installOpenCode()
 	}
 }
 
+func installOpenCode() {
+	fmt.Println("\n📦 Installing OpenCode...")
+
+	checkCmd := exec.Command("which", "opencode")
+	if checkCmd.Run() == nil {
+		fmt.Println("   ✓ OpenCode already installed")
+		return
+	}
+
+	installCmd := exec.Command("bash", "-c", "curl -fsSL https://opencode.ai/install | bash")
+	installCmd.Stdout = os.Stdout
+	installCmd.Stderr = os.Stderr
+	if err := installCmd.Run(); err != nil {
+		fmt.Printf("   ✗ Failed to install OpenCode: %v\n", err)
+		return
+	}
+	fmt.Println("   ✓ OpenCode installed successfully")
+}
+
 func (m *SetupModel) View() string {
-	stepStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FFFF")).Bold(true)
-	selectedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")).Bold(true)
-	inputStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00")).Background(lipgloss.Color("#1a1a2e"))
-	boxStyle := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color("#6366F1")).Padding(1, 2)
+	return m.renderSetupWizard()
+}
 
-	var content string
-
-	switch m.step {
-	case 0:
-		content = boxStyle.Render(fmt.Sprintf(`%s
-
-Welcome to Aigo Setup!
-
-This wizard will help you configure:
-- LLM Provider selection
-- API Key configuration
-- Model selection
-- Workspace directory
-
-Press [Enter] to continue.`, stepStyle.Render("Welcome to Aigo V1.5")))
-
-	case 1:
-		providerList := ""
-		for i, p := range m.providers {
-			if i == m.selected {
-				providerList += selectedStyle.Render("▶ "+p+" ") + "\n"
-			} else {
-				providerList += "  " + p + "\n"
-			}
-		}
-		content = boxStyle.Render(fmt.Sprintf(`%s
-
-Select your LLM provider:
-
-%s
-Use ↑/↓ or Tab to select, Enter to confirm.`, stepStyle.Render("Provider Selection"), providerList))
-
-	case 2:
-		note := ""
-		if m.provider == "local" {
-			note = "\n(Note: Local provider doesn't need API key)"
-		}
-		input := m.input
-		if m.inputMode {
-			input = inputStyle.Render(m.input + "_")
-		} else {
-			input = inputStyle.Render(strings.Repeat("•", len(m.input)))
-		}
-		content = boxStyle.Render(fmt.Sprintf(`%s
-
-Provider: %s
-
-Enter your API key:%s
-
-%s
-
-Press Enter to skip.`, stepStyle.Render("API Key"), m.provider, note, input))
-
-	case 3:
-		defaultModels := map[string]string{
-			"openai":     "gpt-4o",
-			"anthropic":  "claude-sonnet-4-20250514",
-			"openrouter": "openai/gpt-4o",
-			"glm":        "glm-4-plus",
-			"local":      "qwen2.5-coder",
-		}
-		defaultModel := defaultModels[m.provider]
-		input := m.input
-		if m.inputMode {
-			input = inputStyle.Render(m.input + "_")
-		} else if m.input == "" {
-			input = lipgloss.NewStyle().Foreground(lipgloss.Color("#666")).Render(defaultModel + " (default)")
-		} else {
-			input = m.input
-		}
-		content = boxStyle.Render(fmt.Sprintf(`%s
-
-Provider: %s
-
-Enter model name (or press Enter for default):%s
-
-%s
-
-Default: %s`, stepStyle.Render("Model Selection"), m.provider, lipgloss.NewStyle().Foreground(lipgloss.Color("#666")).Render("(optional)"), input, defaultModel))
-
-	case 4:
-		input := m.input
-		if m.inputMode {
-			input = inputStyle.Render(m.input + "_")
-		} else if m.input == "" {
-			input = lipgloss.NewStyle().Foreground(lipgloss.Color("#666")).Render("current directory (default)")
-		} else {
-			input = m.input
-		}
-		content = boxStyle.Render(fmt.Sprintf(`%s
-
-Enter your workspace directory:%s
-
-%s
-
-Press Enter to use current directory.`, stepStyle.Render("Workspace"), lipgloss.NewStyle().Foreground(lipgloss.Color("#666")).Render("(optional)"), input))
-
-	case 5:
-		content = boxStyle.Render(fmt.Sprintf(`%s
-
-Summary:
-- Provider: %s
-- Model: %s
-- Workspace: %s
-
-Press [Enter] to install OpenCode and complete setup.`, stepStyle.Render("Ready to Complete"), m.provider, m.model, m.workspace))
-
-	case 6:
-		content = boxStyle.Render(fmt.Sprintf(`%s
-
-Setup Complete!
-
-Run 'aigo tui' to start the interactive mode.
-Run 'aigo run "your task"' to execute a task.
-
-Enjoy!`, stepStyle.Render("Congratulations!")))
+func (m *SetupModel) renderSetupWizard() string {
+	if m.complete {
+		return m.renderComplete()
 	}
 
 	progress := ""
-	for i, s := range m.steps {
+	for i, s := range setupSteps {
 		if i == m.step {
-			progress += stepStyle.Render("[" + s + "] ")
+			progress += titleStyle.Render("[" + s + "] ")
 		} else if i < m.step {
-			progress += lipgloss.NewStyle().Foreground(lipgloss.Color("#666")).Render("[" + s + "] ")
+			progress += dimStyle.Render("[" + s + "] ")
 		} else {
-			progress += lipgloss.NewStyle().Foreground(lipgloss.Color("#333")).Render("[" + s + "] ")
+			progress += lipgloss.NewStyle().Foreground(lipgloss.Color("#374151")).Render("[" + s + "] ")
 		}
 	}
 
-	help := "↑↓/Tab: select | Enter: confirm | Esc: back | Ctrl+C: quit"
-	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#666")).Padding(0, 1)
+	var content string
+	switch m.step {
+	case 0:
+		content = m.renderWelcome()
+	case 1:
+		content = m.renderProvider()
+	case 2:
+		content = m.renderAPIKey()
+	case 3:
+		content = m.renderWorkspace()
+	case 4:
+		content = m.renderOpenCode()
+	case 5:
+		content = m.renderGateway()
+	}
+
+	help := dimStyle.Render("↑↓: select | Enter: confirm | Esc: back | Space: toggle | Ctrl+C: quit")
 
 	return lipgloss.JoinVertical(lipgloss.Top,
-		lipgloss.NewStyle().Padding(0, 1).Render(progress),
-		boxStyle.Width(60).Render(content),
-		helpStyle.Render(help),
+		lipgloss.NewStyle().Padding(0, 1).Width(m.width-2).Render(progress),
+		setupPanelStyle.Width(m.width-6).Render(content),
+		help,
 	)
+}
+
+func (m *SetupModel) renderWelcome() string {
+	return fmt.Sprintf(`%s
+
+%s
+
+Features:
+  • Multi-Provider LLM Support (OpenCode, OpenAI, Anthropic, etc.)
+  • OpenCode Integration for free models
+  • Interactive TUI Mode
+  • Gateway Support (Telegram, Discord, Slack, WhatsApp)
+  • Token Budget Management
+
+Press [Enter] to continue.`,
+		titleStyle.Render("⚡ Aigo Setup Wizard"),
+		dimStyle.Render("Execute with Zen"))
+}
+
+func (m *SetupModel) renderProvider() string {
+	providers := []struct {
+		name   string
+		models string
+		cost   string
+	}{
+		{"OpenCode", "qwen3.6, mimo, minimax", "FREE"},
+		{"OpenAI", "gpt-4, gpt-4o", "Paid"},
+		{"Anthropic", "claude-sonnet, claude-opus", "Paid"},
+		{"OpenRouter", "openai/gpt-4o, anthropic/*", "Paid"},
+		{"Local", "qwen2.5, llama3", "Self-hosted"},
+	}
+
+	var lines []string
+	lines = append(lines, titleStyle.Render("▸ Select Model Provider"))
+	lines = append(lines, "")
+
+	for i, p := range providers {
+		marker := "  "
+		if i == m.selected {
+			marker = "▶ "
+		}
+		costStr := p.cost
+		if p.cost == "Paid" {
+			costStr = lipgloss.NewStyle().Foreground(accent).Render(p.cost)
+		} else {
+			costStr = lipgloss.NewStyle().Foreground(secondary).Render(p.cost)
+		}
+		lines = append(lines, fmt.Sprintf("%s%s  %s  (%s)",
+			marker, p.name, p.models, costStr))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func (m *SetupModel) renderAPIKey() string {
+	inputDisplay := m.input
+	if m.inputMode {
+		inputDisplay = m.input + "_"
+	} else if m.input != "" {
+		inputDisplay = "********"
+	} else if m.provider == "opencode" || m.provider == "local" {
+		inputDisplay = dimStyle.Render("(not required)")
+	}
+
+	note := ""
+	if m.provider == "opencode" || m.provider == "local" {
+		note = "\n" + dimStyle.Render("(No API key needed for this provider)")
+	}
+
+	return fmt.Sprintf(`%s
+
+Provider: %s
+Model: %s
+
+Enter your API key:%s
+
+%s`,
+		titleStyle.Render("▸ API Key Configuration"),
+		m.provider, m.model,
+		note,
+		inputDisplay)
+}
+
+func (m *SetupModel) renderWorkspace() string {
+	ws := m.workspace
+	if ws == "" {
+		ws, _ = os.Getwd()
+	}
+
+	inputDisplay := ws
+	if m.inputMode {
+		inputDisplay = m.input
+	}
+
+	return fmt.Sprintf(`%s
+
+Enter your workspace directory.
+
+%s`,
+		titleStyle.Render("▸ Workspace Configuration"),
+		inputDisplay)
+}
+
+func (m *SetupModel) renderOpenCode() string {
+	checked := " "
+	if m.opencode {
+		checked = "✓"
+	}
+
+	status := "not installed"
+	checkCmd := exec.Command("which", "opencode")
+	if checkCmd.Run() == nil {
+		status = "already installed"
+	}
+
+	return fmt.Sprintf(`%s
+
+[%s] Install OpenCode for free models
+
+Status: %s
+
+OpenCode provides free access to:
+  • qwen3.6-plus-free
+  • mimo-v2-omni-free
+  • minimax-m2.5-free
+
+Press [Space] to toggle, [Enter] to continue.`,
+		titleStyle.Render("▸ OpenCode Installation"),
+		checked,
+		dimStyle.Render(status))
+}
+
+func (m *SetupModel) renderGateway() string {
+	checked := " "
+	if m.gateway {
+		checked = "✓"
+	}
+
+	return fmt.Sprintf(`[%s] Enable Gateway (Telegram, Discord, Slack, WhatsApp)
+
+If enabled, you can interact with Aigo from messaging platforms.
+
+Press [Space] to toggle, [Enter] to continue.`,
+		checked)
+}
+
+func (m *SetupModel) renderComplete() string {
+	return fmt.Sprintf(`%s
+
+✓ Configuration saved to: ~/.aigo/config.yaml
+✓ Workspace: %s
+✓ Provider: %s / %s
+
+%s
+
+Run 'aigo tui' to start the interactive mode.
+Run 'aigo run "your task"' to execute a task.
+`,
+		titleStyle.Render("✓ Setup Complete!"),
+		m.workspace,
+		m.provider,
+		m.model,
+		dimStyle.Render("Thank you for choosing Aigo!"))
 }
 
 func RunSetupWizard() error {
 	p := tea.NewProgram(NewSetupModel(), tea.WithAltScreen())
 	_, err := p.Run()
 	return err
-}
-
-func installOpenCodeIfNeeded() error {
-	cmd := exec.Command("which", "opencode")
-	if cmd.Run() == nil {
-		return nil
-	}
-
-	fmt.Println("OpenCode not found. Installing...")
-	installCmd := exec.Command("bash", "-c", "curl -fsSL https://opencode.ai/install | bash")
-	installCmd.Stdout = os.Stdout
-	installCmd.Stderr = os.Stderr
-	return installCmd.Run()
 }
