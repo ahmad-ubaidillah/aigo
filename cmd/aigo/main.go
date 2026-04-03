@@ -17,72 +17,43 @@ var verbose bool
 func main() {
 	var configPath string
 
+	// Check and run setup if no config exists
+	if !cli.ConfigExists() {
+		fmt.Println("Welcome! Let's set up Aigo first...")
+		wizard := setup.NewSetupWizard()
+		if err := wizard.Run(); err != nil {
+			fmt.Printf("Setup cancelled or failed: %v\n", err)
+			fmt.Println("You can run 'aigo setup' later to configure manually.")
+		} else if wizard.IsComplete() {
+			cfg := wizard.GetConfig()
+			configPath = cli.GetDefaultConfigPath()
+			if err := cli.SaveConfig(*cfg, configPath); err == nil {
+				fmt.Printf("✓ Config saved to: %s\n", configPath)
+			}
+		}
+	}
+
 	rootCmd := &cobra.Command{
 		Use:   "aigo",
-		Short: "Aigo — Execute with Zen",
-		Long: `Aigo is a minimal, fast, token-efficient AI agent platform.
-With OMO superpowers. Orchestrates OpenCode for coding, handles everything else natively.
+		Short: "Aigo — your buddy aigo",
+		Long: `Aigo - your buddy aigo
+Execute with Zen - AI coding partner that understands your project context.
 
-V1.5 Never-Die Architecture:
-- Multi-Provider LLM Router with automatic fallback
-- Token Budget Manager with cross-channel alerts
-- Agent Roles: Aigo, Atlas, Cody, Nova, Testa
-
-Usage:
-  aigo                  Interactive TUI mode
+Quick Start:
+  aigo                  Start interactive mode (default)
+  aigo tui              Start TUI mode
   aigo run "fix bug"    Execute a task
-  aigo setup            First-run setup (install OpenCode + inject superpowers)
+  aigo setup            Re-run setup wizard
   aigo providers        List configured LLM providers
   aigo budget           Show token usage and alerts
   aigo doctor           Diagnose issues`,
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "setup" {
-				return nil
-			}
-			if !cli.ConfigExists() {
-				fmt.Println("No config found. Running first-time setup...")
-				wizard := setup.NewSetupWizard()
-				if err := wizard.Run(); err != nil {
-					fmt.Printf("Setup cancelled or failed: %v\n", err)
-					fmt.Println("You can run 'aigo setup' later to configure manually.")
-				} else if wizard.IsComplete() {
-					cfg := wizard.GetConfig()
-					configPath := cli.GetDefaultConfigPath()
-					if err := cli.SaveConfig(*cfg, configPath); err == nil {
-						fmt.Printf("✓ Config saved to: %s\n", configPath)
-					}
-				}
-			}
-			return nil
-		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, err := cli.LoadConfig(configPath)
-			if err != nil {
-				return fmt.Errorf("load config: %w", err)
-			}
-			fmt.Println("Aigo v" + version + " - Never-Die Architecture")
-			if verbose {
-				fmt.Println("Verbose mode enabled")
-			}
-			fmt.Println()
-			fmt.Println("V1.5 Features:")
-			fmt.Println("  aigo tui             # Interactive TUI mode")
-			fmt.Println("  aigo providers       # List configured LLM providers")
-			fmt.Println("  aigo budget          # Show token usage")
-			fmt.Println("  aigo agents          # List agent roles")
-			fmt.Println("  aigo install opencode # Install OpenCode")
-			fmt.Println("  aigo completion bash # Generate shell completion")
-			fmt.Println()
-			fmt.Println("Quick start:")
-			fmt.Println("  aigo tui             # Start interactive mode")
-			fmt.Println("  aigo setup           # Re-run setup wizard")
-			fmt.Println("  aigo run \"fix bug\" # Execute a task")
-			return nil
+			// Default: start interactive TUI mode
+			return tui.Run()
 		},
 	}
 
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "", "config file path")
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	rootCmd.Version = version
 
 	rootCmd.AddCommand(runCmd())
