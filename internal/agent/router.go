@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ahmad-ubaidillah/aigo/internal/handlers"
+	"github.com/ahmad-ubaidillah/aigo/internal/llm"
 	"github.com/ahmad-ubaidillah/aigo/internal/memory"
 	"github.com/ahmad-ubaidillah/aigo/internal/opencode"
 	"github.com/ahmad-ubaidillah/aigo/internal/research"
@@ -32,6 +33,7 @@ type Router struct {
 	ocClient     *opencode.Client
 	registry     *skills.Registry
 	searchClient *research.SearchClient
+	llmClient    llm.LLMClient
 }
 
 func NewRouter(db *memory.SessionDB, cfg types.Config, ocClient *opencode.Client) *Router {
@@ -42,6 +44,22 @@ func NewRouter(db *memory.SessionDB, cfg types.Config, ocClient *opencode.Client
 		ocClient:     ocClient,
 		registry:     skills.NewRegistry(),
 		searchClient: research.NewSearchClient(),
+	}
+
+	r.registerDefaults()
+	return r
+}
+
+// NewRouterWithLLM creates a router with LLM client for general queries
+func NewRouterWithLLM(db *memory.SessionDB, cfg types.Config, ocClient *opencode.Client, llmClient llm.LLMClient) *Router {
+	r := &Router{
+		handlers:     make(map[string]Handler),
+		db:           db,
+		cfg:          cfg,
+		ocClient:     ocClient,
+		registry:     skills.NewRegistry(),
+		searchClient: research.NewSearchClient(),
+		llmClient:    llmClient,
 	}
 
 	r.registerDefaults()
@@ -77,7 +95,7 @@ func (r *Router) registerDefaults() {
 	r.RegisterHandler(types.IntentGateway, &handlers.GatewayHandler{})
 	r.RegisterHandler(types.IntentMemory, &handlers.GatewayHandler{})
 	r.RegisterHandler(types.IntentAutomation, &handlers.AutomationHandler{})
-	r.RegisterHandler(types.IntentGeneral, &handlers.GeneralHandler{})
+	r.RegisterHandler(types.IntentGeneral, handlers.NewGeneralHandler(r.llmClient, ""))
 	r.RegisterHandler(types.IntentSkill, handlers.NewSkillHandler(r.registry))
 	r.RegisterHandler(types.IntentResearch, handlers.NewResearchHandler(r.searchClient))
 	r.RegisterHandler(types.IntentHTTPCall, handlers.NewHTTPHandler())

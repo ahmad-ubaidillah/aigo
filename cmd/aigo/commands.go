@@ -13,6 +13,7 @@ import (
 	aigoctx "github.com/ahmad-ubaidillah/aigo/internal/context"
 	"github.com/ahmad-ubaidillah/aigo/internal/installer"
 	"github.com/ahmad-ubaidillah/aigo/internal/intent"
+	"github.com/ahmad-ubaidillah/aigo/internal/llm"
 	"github.com/ahmad-ubaidillah/aigo/internal/memory"
 	"github.com/ahmad-ubaidillah/aigo/internal/opencode"
 	"github.com/ahmad-ubaidillah/aigo/internal/setup"
@@ -71,9 +72,17 @@ func runCmdRunE(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("init opencode client: %w", err)
 	}
 
+	// Create LLM client for general queries
+	var llmClient llm.LLMClient
+	if cfg.LLM.Provider == "glm" && cfg.LLM.APIKey != "" {
+		llmClient = llm.NewGLMClient(cfg.LLM.APIKey, cfg.LLM.DefaultModel)
+	} else if cfg.LLM.Provider == "local" && cfg.LLM.BaseURL != "" {
+		llmClient = llm.NewLocalClient(cfg.LLM.DefaultModel, cfg.LLM.BaseURL)
+	}
+
 	classifier := intent.NewClassifier(cfg)
 	ctxEngine := aigoctx.NewContextEngine(db, cfg)
-	router := agent.NewRouter(db, cfg, ocClient)
+	router := agent.NewRouterWithLLM(db, cfg, ocClient, llmClient)
 
 	if sessionID == "" {
 		sessionID = fmt.Sprintf("sess_%d", time.Now().Unix())
