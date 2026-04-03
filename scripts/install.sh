@@ -21,7 +21,7 @@ cat << 'EOF'
 EOF
 echo -e "${NC}"
 
-echo -e "${GREEN}⚡ Aigo Installer${NC} - Execute with Zen"
+echo -e "${GREEN}⚡ Aizen Installer${NC} - Execute with Zen"
 echo ""
 
 detect_os() {
@@ -77,7 +77,7 @@ download_binary() {
         return 1
     fi
     
-    echo -e "${YELLOW}▸ Downloading Aigo ${VERSION} for ${OS}/${ARCH}...${NC}"
+    echo -e "${YELLOW}▸ Downloading Aizen ${VERSION} for ${OS}/${ARCH}...${NC}"
     
     BINARY_URL="https://github.com/${REPO}/releases/download/${VERSION}/${BINARY_NAME}-${OS}-${ARCH}"
     
@@ -145,7 +145,7 @@ add_to_path() {
 main() {
     check_prerequisites
     
-    echo -e "${YELLOW}▸ Installing Aigo...${NC}"
+    echo -e "${YELLOW}▸ Installing Aizen...${NC}"
     echo ""
     
     if download_binary; then
