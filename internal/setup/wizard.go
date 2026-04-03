@@ -105,10 +105,12 @@ func (w *SetupWizard) setupWeb(ctx context.Context) error {
 func (w *SetupWizard) configureProviders() error {
 	fmt.Println()
 	fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("#FFD700")).Render("=== LLM Provider Configuration ==="))
-	fmt.Println("You can configure multiple providers for automatic fallback.")
+	fmt.Println("Select your LLM provider.")
 	fmt.Println()
 
-	providers := []string{"openai", "anthropic", "openrouter", "glm", "local", "custom"}
+	reader := bufio.NewReader(os.Stdin)
+
+	providers := []string{"openai", "anthropic", "openrouter", "glm", "local"}
 
 	fmt.Println("Available providers:")
 	for i, p := range providers {
@@ -116,75 +118,54 @@ func (w *SetupWizard) configureProviders() error {
 	}
 	fmt.Println()
 
-	fmt.Print("Add a provider? (y/n): ")
-	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Select provider [1-5]: ")
 	input, _ := reader.ReadString('\n')
-	input = strings.TrimSpace(strings.ToLower(input))
+	input = strings.TrimSpace(input)
 
-	if input != "y" && input != "yes" {
-		return nil
+	selected := 0
+	fmt.Sscanf(input, "%d", &selected)
+	if selected < 1 || selected > len(providers) {
+		selected = 1
 	}
 
-	w.cfg.LLM.Providers = nil
-	w.cfg.LLM.Fallback = nil
+	providerName := providers[selected-1]
+	w.cfg.LLM.Provider = providerName
 
-	priority := 1
-	for input == "y" || input == "yes" {
-		fmt.Print("Provider name (e.g., openai, anthropic): ")
-		providerInput, _ := reader.ReadString('\n')
-		providerName := strings.TrimSpace(providerInput)
-
-		validProvider := false
-		for _, p := range providers {
-			if providerName == p {
-				validProvider = true
-				break
-			}
-		}
-		if !validProvider {
-			fmt.Printf("Invalid provider: %s\n", providerName)
-			continue
-		}
-
-		apiKey := ""
-		if providerName != "local" {
-			fmt.Print("API key (or press Enter to skip): ")
-			apiKeyInput, _ := reader.ReadString('\n')
-			apiKey = strings.TrimSpace(apiKeyInput)
-		}
-
-		model := ""
-		fmt.Print("Model (optional, press Enter for default): ")
-		modelInput, _ := reader.ReadString('\n')
-		model = strings.TrimSpace(modelInput)
-
-		baseURL := ""
-		if providerName == "custom" {
-			fmt.Print("Base URL: ")
-			urlInput, _ := reader.ReadString('\n')
-			baseURL = strings.TrimSpace(urlInput)
-		}
-
-		w.cfg.LLM.Providers = append(w.cfg.LLM.Providers, types.ProviderConfig{
-			Name:     providerName,
-			APIKey:   apiKey,
-			BaseURL:  baseURL,
-			Model:    model,
-			Enabled:  true,
-			Priority: priority,
-			Timeout:  30,
-		})
-		w.cfg.LLM.Fallback = append(w.cfg.LLM.Fallback, providerName)
-
-		priority++
-
-		fmt.Print("Add another provider? (y/n): ")
-		input, _ = reader.ReadString('\n')
-		input = strings.TrimSpace(strings.ToLower(input))
+	apiKey := ""
+	if providerName != "local" {
+		fmt.Print("API key: ")
+		apiKeyInput, _ := reader.ReadString('\n')
+		apiKey = strings.TrimSpace(apiKeyInput)
+		w.cfg.LLM.APIKey = apiKey
 	}
 
-	fmt.Println()
-	fmt.Printf("Configured %d provider(s)\n", len(w.cfg.LLM.Providers))
+	model := ""
+	defaultModels := map[string]string{
+		"openai":     "gpt-4o",
+		"anthropic":  "claude-sonnet-4-20250514",
+		"openrouter": "openai/gpt-4o",
+		"glm":        "glm-4-plus",
+		"local":      "qwen2.5-coder",
+	}
+	defaultModel := defaultModels[providerName]
+
+	fmt.Printf("Model (press Enter for default: %s): ", defaultModel)
+	modelInput, _ := reader.ReadString('\n')
+	model = strings.TrimSpace(modelInput)
+	if model == "" {
+		model = defaultModel
+	}
+	w.cfg.LLM.DefaultModel = model
+
+	baseURL := ""
+	if providerName == "openrouter" {
+		fmt.Print("Base URL (press Enter for default): ")
+		urlInput, _ := reader.ReadString('\n')
+		baseURL = strings.TrimSpace(urlInput)
+		w.cfg.LLM.BaseURL = baseURL
+	}
+
+	fmt.Printf("Configured: %s / %s\n", providerName, model)
 	return nil
 }
 
