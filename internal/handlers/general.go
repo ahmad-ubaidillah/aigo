@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/ahmad-ubaidillah/aigo/internal/llm"
 	"github.com/ahmad-ubaidillah/aigo/pkg/types"
@@ -29,12 +30,12 @@ func (h *GeneralHandler) Execute(ctx context.Context, task *types.Task, workspac
 	if h.client == nil {
 		return &types.ToolResult{
 			Success: true,
-			Output:  task.Description,
+			Output:  fmt.Sprintf("I received your message: %s\n\n(No LLM configured - please set up GLM or OpenAI)", task.Description),
 		}, nil
 	}
 
 	// Call LLM to answer the question
-	prompt := fmt.Sprintf("You are Aigo, a helpful AI assistant. Answer the following question concisely:\n\n%s", task.Description)
+	prompt := fmt.Sprintf("You are Aigo, a helpful AI assistant. Answer the following question concisely and accurately:\n\n%s", task.Description)
 	
 	response, err := h.client.Complete(ctx, prompt)
 	if err != nil {
@@ -44,8 +45,25 @@ func (h *GeneralHandler) Execute(ctx context.Context, task *types.Task, workspac
 		}, nil
 	}
 
+	// Validate response
+	if response == nil {
+		return &types.ToolResult{
+			Success: false,
+			Error:   "LLM returned nil response",
+		}, nil
+	}
+
+	// Check for empty content
+	content := strings.TrimSpace(response.Content)
+	if content == "" {
+		return &types.ToolResult{
+			Success: false,
+			Error:   "LLM returned empty response",
+		}, nil
+	}
+
 	return &types.ToolResult{
 		Success: true,
-		Output:  response.Content,
+		Output:  content,
 	}, nil
 }

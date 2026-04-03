@@ -181,22 +181,27 @@ func (c *GLMClient) doRequest(ctx context.Context, req *glmRequest) ([]byte, err
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
+	
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("send request: %w", err)
 	}
 	defer resp.Body.Close()
+	
+	respBody, _ := io.ReadAll(resp.Body)
+	
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("api error %d: %s", resp.StatusCode, string(respBody))
 	}
-	return io.ReadAll(resp.Body)
+	
+	return respBody, nil
 }
 
 func (c *GLMClient) doStreamRequest(ctx context.Context, req *glmRequest) (*http.Response, error) {

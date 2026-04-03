@@ -120,6 +120,7 @@ func NewClassifier(cfg types.Config) *Classifier {
 // Classify classifies user input using rule-based first, then LLM fallback.
 func (c *Classifier) Classify(input string) Classification {
 	result := c.ruleBasedClassify(input)
+	
 	if result.Confidence >= 0.7 {
 		return result
 	}
@@ -142,7 +143,8 @@ func (c *Classifier) ruleBasedClassify(input string) Classification {
 
 	for intent, keywords := range keywordSets {
 		for _, kw := range keywords {
-			if strings.Contains(lower, kw) {
+			// Use word boundary matching instead of substring matching
+			if isWordMatch(lower, kw) {
 				scores[intent]++
 			}
 		}
@@ -174,6 +176,14 @@ func (c *Classifier) ruleBasedClassify(input string) Classification {
 		Description: desc,
 		Tags:        tags,
 	}
+}
+
+// isWordMatch checks if a keyword exists as a whole word in the input
+func isWordMatch(input, keyword string) bool {
+	// Add word boundaries
+	pattern := `\b` + regexp.QuoteMeta(keyword) + `\b`
+	matched, _ := regexp.MatchString(pattern, input)
+	return matched
 }
 
 func (c *Classifier) llmClassify(input string) Classification {
