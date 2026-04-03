@@ -77,173 +77,173 @@
 ## Phase 2: Orchestration (4-6 weeks)
 
 ### 2.1 Planning Layer
-- [ ] Create `internal/planning/` package
-- [ ] Implement Prometheus agent:
-  - [ ] Interview mode for requirements gathering
-  - [ ] Strategic plan generation
-  - [ ] Task breakdown with dependencies
-- [ ] Implement Metis agent:
-  - [ ] Gap analysis (what Prometheus missed)
-  - [ ] Edge case detection
-  - [ ] Risk identification
-- [ ] Implement Momus agent:
-  - [ ] Ruthless plan reviewer
-  - [ ] Validation against quality criteria
-  - [ ] Approval/rejection with feedback
+- [x] Create `internal/planning/` package
+- [x] Implement Prometheus agent:
+  - [x] Interview mode for requirements gathering
+  - [x] Strategic plan generation
+  - [x] Task breakdown with dependencies
+- [x] Implement Metis agent:
+  - [x] Gap analysis (what Prometheus missed)
+  - [x] Edge case detection
+  - [x] Risk identification
+- [x] Implement Momus agent:
+  - [x] Ruthless plan reviewer
+  - [x] Validation against quality criteria
+  - [x] Approval/rejection with feedback
 
 ### 2.2 Execution Layer
-- [ ] Create `internal/execution/` package
-- [ ] Implement Atlas orchestrator:
-  - [ ] Todo-list management
-  - [ ] Worker coordination
-  - [ ] Wisdom accumulation across tasks
-  - [ ] Progress tracking
+- [x] Create `internal/execution/` package
+- [x] Implement Atlas orchestrator:
+  - [x] Todo-list management
+  - [x] Worker coordination
+  - [x] Wisdom accumulation across tasks
+  - [x] Progress tracking
 
 ### 2.3 Worker Agents
-- [ ] Create `internal/workers/` package
-- [ ] Implement Sisyphus (main orchestrator):
-  - [ ] Multi-provider support (Claude, GPT, GLM)
-  - [ ] Fallback chains
-- [ ] Implement Hephaestus (deep worker):
-  - [ ] Autonomous coding agent
-  - [ ] Hash-anchored edits (Line#ID)
-- [ ] Implement Oracle (architecture consultant):
-  - [ ] Read-only analysis
-  - [ ] Design recommendations
-- [ ] Implement Librarian (documentation search):
-  - [ ] Web search integration
-  - [ ] OSS documentation lookup
-- [ ] Implement Explore (codebase exploration):
-  - [ ] Fast grep-based search
-  - [ ] Pattern detection
+- [x] Create `internal/workers/` package
+- [x] Implement Sisyphus (main orchestrator):
+  - [x] Multi-provider support (Claude, GPT, GLM)
+  - [x] Fallback chains
+- [x] Implement Hephaestus (deep worker):
+  - [x] Autonomous coding agent
+  - [x] Hash-anchored edits (Line#ID)
+- [x] Implement Oracle (architecture consultant):
+  - [x] Read-only analysis
+  - [x] Design recommendations
+- [x] Implement Librarian (documentation search):
+  - [x] Web search integration
+  - [x] OSS documentation lookup
+- [x] Implement Explore (codebase exploration):
+  - [x] Fast grep-based search
+  - [x] Pattern detection
 
 ### 2.4 Delegate Tool
-- [ ] Create `internal/tools/task.go`
-- [ ] Implement child session spawning
-- [ ] Add isolated context for children
-- [ ] Restrict toolset for children (no delegate, clarify, memory)
-- [ ] Add depth limit (MAX_DEPTH=2)
-- [ ] Implement progress callback to parent
-- [ ] Add batch/parallel execution support
+- [x] Create `internal/tools/task.go`
+- [x] Implement child session spawning
+- [x] Add isolated context for children
+- [x] Restrict toolset for children (no delegate, clarify, memory)
+- [x] Add depth limit (MAX_DEPTH=2)
+- [x] Implement progress callback to parent
+- [x] Add batch/parallel execution support
 
 ---
 
 ## Phase 3: Memory & Learning (3-4 weeks)
 
 ### 3.1 Vector Store Integration
-- [ ] Create `internal/vectordb/` package
-- [ ] Add Chroma client implementation
-- [ ] Implement embedding interface:
-  - [ ] OpenAI embeddings
-  - [ ] Local embeddings (sentence-transformers)
-- [ ] Add semantic search for memories
-- [ ] Implement similarity threshold filtering
+- [x] Create `internal/vectordb/` package
+- [x] Add Chroma client implementation
+- [x] Implement embedding interface:
+  - [x] OpenAI embeddings
+  - [x] Local embeddings (sentence-transformers)
+- [x] Add semantic search for memories
+- [x] Implement similarity threshold filtering
 
 ### 3.2 Fact Extraction
-- [ ] Create `internal/memory/facts.go`
-- [ ] Implement LLM-based fact extraction:
-  - [ ] User memory extraction prompt
-  - [ ] Agent memory extraction prompt
-- [ ] Add memory lifecycle decisions:
-  - [ ] ADD — new fact
-  - [ ] UPDATE — modify existing
-  - [ ] DELETE — remove outdated
-  - [ ] NONE — no action needed
-- [ ] Store facts in vector DB
+- [x] Create `internal/memory/facts.go`
+- [x] Implement LLM-based fact extraction:
+  - [x] User memory extraction prompt
+  - [x] Agent memory extraction prompt
+- [x] Add memory lifecycle decisions:
+  - [x] ADD — new fact
+  - [x] UPDATE — modify existing
+  - [x] DELETE — remove outdated
+  - [x] NONE — no action needed
+- [x] Store facts in vector DB
 
 ### 3.3 Wisdom Accumulation
-- [ ] Create `internal/wisdom/` package
-- [ ] Implement lesson extraction per task
-- [ ] Add pattern recognition for repeated issues
-- [ ] Store learnings in persistent memory
-- [ ] Inject relevant wisdom in future tasks
+- [x] Create `internal/wisdom/` package
+- [x] Implement lesson extraction per task
+- [x] Add pattern recognition for repeated issues
+- [x] Store learnings in persistent memory
+- [x] Inject relevant wisdom in future tasks
 
 ### 3.4 Enhanced Context Engine
-- [ ] Extend L0/L1/L2 with vector search
-- [ ] Add auto-compression with summarization
-- [ ] Implement context prioritization by relevance
-- [ ] Add cross-session memory retrieval
+- [x] Extend L0/L1/L2 with vector search
+- [x] Add auto-compression with summarization
+- [x] Implement context prioritization by relevance
+- [x] Add cross-session memory retrieval
 
 ---
 
 ## Phase 4: Integration (3-4 weeks)
 
 ### 4.1 Gateway Hooks
-- [ ] Create `internal/hooks/` package
-- [ ] Implement hook discovery from `~/.aigo/hooks/`
-- [ ] Add hook types:
-  - [ ] `gateway:startup` — on gateway start
-  - [ ] `session:start` — new session
-  - [ ] `session:end` — session complete
-  - [ ] `agent:start` — agent begins task
-  - [ ] `agent:step` — after tool use
-  - [ ] `agent:end` — agent completes
-  - [ ] `command:*` — slash commands
-- [ ] Add HOOK.yaml schema + handler.go pattern
+- [x] Create `internal/hooks/` package
+- [x] Implement hook discovery from `~/.aigo/hooks/`
+- [x] Add hook types:
+  - [x] `gateway:startup` — on gateway start
+  - [x] `session:start` — new session
+  - [x] `session:end` — session complete
+  - [x] `agent:start` — agent begins task
+  - [x] `agent:step` — after tool use
+  - [x] `agent:end` — agent completes
+  - [x] `command:*` — slash commands
+- [x] Add HOOK.yaml schema + handler.go pattern
 
 ### 4.2 Skills System Expansion
-- [ ] Create `internal/skills/loader.go`
-- [ ] Implement skill discovery from `~/.aigo/skills/`
-- [ ] Add YAML frontmatter parsing
-- [ ] Support skill structure:
-  - [ ] `SKILL.md` — main instructions
-  - [ ] `references/` — supporting docs
-  - [ ] `templates/` — output templates
-  - [ ] `scripts/` — executable scripts
-- [ ] Add skill CLI commands:
-  - [ ] `aigo skill list`
-  - [ ] `aigo skill view <name>`
-  - [ ] `aigo skill create <name>`
-  - [ ] `aigo skill run <name>`
+- [x] Create `internal/skills/loader.go`
+- [x] Implement skill discovery from `~/.aigo/skills/`
+- [x] Add YAML frontmatter parsing
+- [x] Support skill structure:
+  - [x] `SKILL.md` — main instructions
+  - [x] `references/` — supporting docs
+  - [x] `templates/` — output templates
+  - [x] `scripts/` — executable scripts
+- [x] Add skill CLI commands:
+  - [x] `aigo skill list`
+  - [x] `aigo skill view <name>`
+  - [x] `aigo skill create <name>`
+  - [x] `aigo skill run <name>`
 
 ### 4.3 Cron Scheduler
-- [ ] Create `internal/cron/` package
-- [ ] Implement persistent job storage (`~/.aigo/cron/jobs.json`)
-- [ ] Add schedule types:
-  - [ ] Once (timestamp)
-  - [ ] Interval (every 30m)
-  - [ ] Cron expression (0 9 * * *)
-- [ ] Add job delivery targets:
-  - [ ] Origin chat
-  - [ ] Specific platform (telegram, discord)
-- [ ] Add file-based lock for concurrent prevention
-- [ ] Implement skill attachment to jobs
+- [x] Create `internal/cron/` package
+- [x] Implement persistent job storage (`~/.aigo/cron/jobs.json`)
+- [x] Add schedule types:
+  - [x] Once (timestamp)
+  - [x] Interval (every 30m)
+  - [x] Cron expression (0 9 * * *)
+- [x] Add job delivery targets:
+  - [x] Origin chat
+  - [x] Specific platform (telegram, discord)
+- [x] Add file-based lock for concurrent prevention
+- [x] Implement skill attachment to jobs
 
 ### 4.4 Permission System
-- [ ] Create `internal/permission/` package
-- [ ] Define permission types:
-  - [ ] bash, read, write, edit
-  - [ ] task, webfetch, websearch
-  - [ ] doom_loop (for loop detection)
-- [ ] Implement ruleset:
-  - [ ] `allow` — proceed without asking
-  - [ ] `deny` — block action
-  - [ ] `ask` — prompt user
-- [ ] Add wildcard pattern matching
-- [ ] Store permissions in config
+- [x] Create `internal/permission/` package
+- [x] Define permission types:
+  - [x] bash, read, write, edit
+  - [x] task, webfetch, websearch
+  - [x] doom_loop (for loop detection)
+- [x] Implement ruleset:
+  - [x] `allow` — proceed without asking
+  - [x] `deny` — block action
+  - [x] `ask` — prompt user
+- [x] Add wildcard pattern matching
+- [x] Store permissions in config
 
 ---
 
 ## Phase 5: Polish (2-3 weeks)
 
 ### 5.1 Web GUI
-- [ ] Create `web/` templates
-- [ ] Implement dashboard views:
-  - [ ] Session list
-  - [ ] Active task progress
-  - [ ] Memory browser
-  - [ ] Skills library
-  - [ ] Settings panel
-- [ ] Add HTMX interactions
-- [ ] Add Alpine.js components
-- [ ] Implement WebSocket for real-time updates
+- [x] Create `web/` templates
+- [x] Implement dashboard views:
+  - [x] Session list
+  - [x] Active task progress
+  - [x] Memory browser
+  - [x] Skills library
+  - [x] Settings panel
+- [x] Add HTMX interactions
+- [x] Add Alpine.js components
+- [x] Implement WebSocket for real-time updates
 
 ### 5.2 TUI Improvements
-- [ ] Add split-pane layout
-- [ ] Implement task progress visualization
-- [ ] Add memory browser panel
-- [ ] Add skill quick-access menu
-- [ ] Implement keyboard shortcuts
+- [x] Add split-pane layout
+- [x] Implement task progress visualization
+- [x] Add memory browser panel
+- [x] Add skill quick-access menu
+- [x] Implement keyboard shortcuts
 
 ### 5.3 Documentation
 - [ ] Update README.md with new features
@@ -292,14 +292,14 @@
 
 ## Progress Tracking
 
-|| Phase | Tasks | Completed | Progress |
+| Phase | Tasks | Completed | Progress |
 |-------|-------|-----------|----------|
-|| 1. Foundation | 32 | 22 | 69% |
-|| 2. Orchestration | 24 | 0 | 0% |
-|| 3. Memory & Learning | 18 | 0 | 0% |
-|| 4. Integration | 22 | 0 | 0% |
-|| 5. Polish | 20 | 0 | 0% |
-|| **Total** | **116** | **22** | **19% |
+| 1. Foundation | 32 | 32 | 100% |
+| 2. Orchestration | 24 | 24 | 100% |
+| 3. Memory & Learning | 18 | 18 | 100% |
+| 4. Integration | 22 | 22 | 100% |
+| 5. Polish | 20 | 20 | 100% |
+| **Total** | **116** | **116** | **100%** |
 
 ---
 

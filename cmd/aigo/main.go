@@ -70,6 +70,8 @@ Usage:
 	rootCmd.AddCommand(budgetCmd())
 	rootCmd.AddCommand(agentsCmd())
 	rootCmd.AddCommand(installOpenCodeCmd())
+	rootCmd.AddCommand(completionCmd())
+	rootCmd.AddCommand(migrateCmd())
 
 	doctorCmd().Flags().Bool("auto-install", false, "Automatically install missing dependencies")
 	setupCmd().Flags().Bool("force", false, "Force reinstall even if already installed")

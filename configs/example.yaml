@@ -1,0 +1,98 @@
+# Aigo Example Configuration
+# Copy to ~/.aigo/config.yaml or .aigo/config.yaml
+
+# LLM Provider Configuration
+llm:
+  providers:
+    - name: openai
+      api_key: ${OPENAI_API_KEY}
+      model: gpt-4o
+      enabled: false
+      priority: 1
+      timeout: 30
+    - name: anthropic
+      api_key: ${ANTHROPIC_API_KEY}
+      model: claude-sonnet-4-20250514
+      enabled: false
+      priority: 2
+      timeout: 30
+    - name: openrouter
+      api_key: ${OPENROUTER_API_KEY}
+      model: openai/gpt-4o
+      enabled: false
+      priority: 3
+      timeout: 30
+    - name: glm
+      api_key: ${GLM_API_KEY}
+      model: glm-4-plus
+      enabled: false
+      priority: 4
+      timeout: 30
+    - name: local
+      base_url: http://localhost:8080/v1
+      model: ""
+      enabled: false
+      priority: 5
+      timeout: 60
+  fallback:
+    - openai
+    - anthropic
+    - openrouter
+    - glm
+    - local
+
+# Model Selection
+model:
+  default: "opencode/qwen3.6-plus-free"
+  coding: "auto"
+  intent: "gpt-4o-mini"
+
+# OpenCode Settings
+opencode:
+  binary: ""
+  timeout: 300
+  max_turns: 50
+
+# Gateway (Messaging Platforms)
+gateway:
+  enabled: false
+  platforms:
+    - telegram
+    - discord
+    - slack
+    - whatsapp
+  telegram:
+    token: ${TELEGRAM_BOT_TOKEN}
+  discord:
+    token: ${DISCORD_BOT_TOKEN}
+  slack:
+    token: ${SLACK_BOT_TOKEN}
+
+# Memory Settings
+memory:
+  max_l0_items: 20
+  max_l1_items: 50
+  auto_compress: true
+  token_budget: 8000
+  smart_prune: true
+
+# Web UI Settings
+web:
+  enabled: false
+  port: ":8080"
+  auth:
+    enabled: false
+    username: "admin"
+    password: ""
+
+# Token Budget Management
+token_budget:
+  total_budget: 100000
+  warning_threshold: 0.7
+  critical_threshold: 0.9
+  alert_channels:
+    - log
+    - tui
+    - web
+    - gateway
+  per_provider: false

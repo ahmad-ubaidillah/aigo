@@ -318,3 +318,11 @@ func resolveConfigPath(flagPath string) (string, error) {
 
 	return "", fmt.Errorf("no config file found")
 }
+
+func GetDefaultConfigPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ".aigo/config.yaml"
+	}
+	return filepath.Join(home, ".aigo", "config.yaml")
+}

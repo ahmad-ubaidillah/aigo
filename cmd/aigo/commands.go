@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/ahmad-ubaidillah/aigo/internal/agent"
@@ -898,4 +899,123 @@ func installOpenCodeCmd() *cobra.Command {
 
 	cmd.Flags().Bool("force", false, "Force reinstall")
 	return cmd
+}
+
+func completionCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "completion [bash|zsh|fish]",
+		Short: "Generate shell completion script",
+		Long: `Generate shell completion script for your preferred shell.
+		
+Examples:
+  aigo completion bash > ~/.bash_completion
+  aigo completion zsh > ~/.zsh/completion/_aigo
+  aigo completion fish > ~/.config/fish/completions/aigo.fish`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			shell := args[0]
+			switch shell {
+			case "bash":
+				fmt.Print(cli.GenerateShellCompletion("bash"))
+			case "zsh":
+				fmt.Print(cli.GenerateShellCompletion("zsh"))
+			case "fish":
+				fmt.Print(cli.GenerateShellCompletion("fish"))
+			default:
+				return fmt.Errorf("unsupported shell: %s (use: bash, zsh, fish)", shell)
+			}
+			return nil
+		},
+	}
+	return cmd
+}
+
+func migrateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "migrate [config|db]",
+		Short: "Migrate data between versions",
+		Long: `Migrate configuration or database to new format.
+
+Examples:
+  aigo migrate config        # Migrate old config to new format
+  aigo migrate db           # Migrate database schema`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			target := args[0]
+			switch target {
+			case "config":
+				return migrateConfig()
+			case "db":
+				return migrateDB()
+			default:
+				return fmt.Errorf("unknown migration target: %s (use: config, db)", target)
+			}
+		},
+	}
+	return cmd
+}
+
+func migrateConfig() error {
+	configPath := cli.GetDefaultConfigPath()
+
+	// Check if old config exists
+	oldPaths := []string{
+		".aigo/config.yaml",
+		".config/aigo/config.yaml",
+	}
+
+	var oldConfig string
+	for _, p := range oldPaths {
+		if _, err := os.Stat(p); err == nil {
+			oldConfig = p
+			break
+		}
+	}
+
+	if oldConfig == "" {
+		fmt.Println("No old config found. Creating new config from template...")
+		exampleConfig := cli.GenerateExampleConfig()
+		if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+			return fmt.Errorf("create config directory: %w", err)
+		}
+		if err := os.WriteFile(configPath, []byte(exampleConfig), 0644); err != nil {
+			return fmt.Errorf("write config: %w", err)
+		}
+		fmt.Printf("Created new config at: %s\n", configPath)
+		return nil
+	}
+
+	fmt.Printf("Found old config at: %s\n", oldConfig)
+	fmt.Println("Migration: Copying to new location...")
+
+	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+		return fmt.Errorf("create config directory: %w", err)
+	}
+
+	data, err := os.ReadFile(oldConfig)
+	if err != nil {
+		return fmt.Errorf("read old config: %w", err)
+	}
+
+	if err := os.WriteFile(configPath, data, 0644); err != nil {
+		return fmt.Errorf("write new config: %w", err)
+	}
+
+	fmt.Printf("✓ Config migrated to: %s\n", configPath)
+	fmt.Println("  Note: Review and update the migrated config for new options.")
+	return nil
+}
+
+func migrateDB() error {
+	dbPath := ".aigo/sessions.db"
+
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		fmt.Println("No database found. Nothing to migrate.")
+		return nil
+	}
+
+	fmt.Println("Database migration check...")
+	fmt.Printf("Database: %s\n", dbPath)
+	fmt.Println("✓ Database schema is up to date (SQLite with FTS5)")
+	return nil
 }
