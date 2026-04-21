@@ -46,6 +46,12 @@
 | Context compression | ✅ | ✅ | = |
 | Semantic routing | ✅ (98% accuracy) | ✅ (TF-IDF) | 🟡 |
 | Sub-agent delegation | ✅ | ✅ (Sisyphus/Hephaestus/Oracle/Explore) | 🟡 |
+| **GBrain-style Features** | | | |
+| Knowledge Graph | ❌ | ✅ (typed links: works_at, founded, invested_in) | 🟢 Aigo wins |
+| Skill Resolver | ✅ (26 skills) | ✅ (skill-based routing) | 🟡 |
+| Minions (Job Queue) | ✅ | ✅ (durable background jobs) | 🟡 |
+| Hybrid Search (RRF) | ✅ | ✅ (vector + keyword + RRF) | 🟡 |
+| Data Ingestion Recipes | ✅ (8 recipes) | ✅ (email, calendar, twitter) | 🟡 |
 | PLUR learning | ✅ (engrams) | ❌ | 🔴 |
 | Session search | ✅ (zvec) | 🟡 (FTS5) | 🟡 |
 | **Performance** | | | |
