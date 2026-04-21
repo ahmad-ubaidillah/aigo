@@ -23,7 +23,10 @@ import (
 	"github.com/hermes-v2/aigo/internal/channels/telegram"
 	"github.com/hermes-v2/aigo/internal/channels/websocket"
 	"github.com/hermes-v2/aigo/internal/channels/whatsapp"
+	"github.com/hermes-v2/aigo/internal/actionlog"
+	"github.com/hermes-v2/aigo/internal/codex"
 	"github.com/hermes-v2/aigo/internal/config"
+	"github.com/hermes-v2/aigo/internal/diffsandbox"
 	"github.com/hermes-v2/aigo/internal/cron"
 	"github.com/hermes-v2/aigo/internal/crontools"
 	"github.com/hermes-v2/aigo/internal/diary"
@@ -31,14 +34,17 @@ import (
 	"github.com/hermes-v2/aigo/internal/evolution"
 	"github.com/hermes-v2/aigo/internal/evolutiontools"
 	"github.com/hermes-v2/aigo/internal/gateway"
+	"github.com/hermes-v2/aigo/internal/git"
 	"github.com/hermes-v2/aigo/internal/learntools"
 	"github.com/hermes-v2/aigo/internal/memory"
 	"github.com/hermes-v2/aigo/internal/memory/engram"
 	"github.com/hermes-v2/aigo/internal/memory/fts5pkg"
 	"github.com/hermes-v2/aigo/internal/memory/pyramid"
+	"github.com/hermes-v2/aigo/internal/memory/project"
 	"github.com/hermes-v2/aigo/internal/multiagenttools"
 	"github.com/hermes-v2/aigo/internal/persona"
 	"github.com/hermes-v2/aigo/internal/personatools"
+	"github.com/hermes-v2/aigo/internal/plan"
 	"github.com/hermes-v2/aigo/internal/planning"
 	"github.com/hermes-v2/aigo/internal/providers"
 	"github.com/hermes-v2/aigo/internal/memory/vector"
@@ -53,6 +59,7 @@ import (
 	"github.com/hermes-v2/aigo/internal/subagenttools"
 	"github.com/hermes-v2/aigo/internal/tools"
 	"github.com/hermes-v2/aigo/internal/vectortools"
+	"github.com/hermes-v2/aigo/internal/vision"
 	"github.com/hermes-v2/aigo/internal/webtools"
 	"github.com/hermes-v2/aigo/internal/webui"
 )
@@ -226,6 +233,52 @@ func cmdChat() {
 		stats := skillHub.Stats()
 		log.Printf("📦 Skill hub: %v skills indexed (%d sources)", stats["total_indexed"], len(skillHub.ListSources()))
 	}
+
+	projectDir = getProjectDir()
+	var err2 error
+	if err2 = git.RegisterGitTools(reg, projectDir); err2 != nil {
+		log.Printf("⚠️ Git tools warning: %v", err2)
+	} else {
+		log.Printf("📝 Git tools active")
+	}
+
+	planBasePath := filepath.Join(baseDir, "memory", "plans")
+	if err2 = plan.RegisterPlanTools(reg, planBasePath); err2 != nil {
+		log.Printf("⚠️ Plan tools warning: %v", err2)
+	} else {
+		log.Printf("📋 Plan tools active")
+	}
+
+	projBasePath := filepath.Join(baseDir, "memory", "project")
+	if err2 = project.RegisterProjectMemoryTools(reg, projBasePath); err2 != nil {
+		log.Printf("⚠️ Project memory warning: %v", err2)
+	} else {
+		log.Printf("🗂️ Project memory active")
+	}
+
+	codexBasePath := filepath.Join(baseDir, "codex")
+	if err2 = codex.RegisterCodexTools(reg, codexBasePath); err2 != nil {
+		log.Printf("⚠️ Codex warning: %v", err2)
+	} else {
+		log.Printf("🔍 Codex active")
+	}
+
+	actionlogBasePath := filepath.Join(baseDir, "memory", "actions")
+	if err2 = actionlog.RegisterActionLogTools(reg, actionlogBasePath); err2 != nil {
+		log.Printf("⚠️ Action log warning: %v", err2)
+	} else {
+		log.Printf("📜 Action log active")
+	}
+
+	sandboxBasePath := filepath.Join(baseDir, "memory", "sandbox")
+	if err2 = diffsandbox.RegisterSandboxTools(reg, sandboxBasePath); err2 != nil {
+		log.Printf("⚠️ Diff sandbox warning: %v", err2)
+	} else {
+		log.Printf("🏖️ Diff sandbox active")
+	}
+
+	vision.RegisterVisionTools(reg)
+	log.Printf("👁️ Vision pipeline active")
 
 	fmt.Println("🦞 Aigo Chat — type 'exit' to quit, 'clear' to clear screen")
 	fmt.Printf("   Provider: %s | Model: %s | Tools: %d\n\n",

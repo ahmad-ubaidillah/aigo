@@ -1,0 +1,23 @@
+[
+  {
+    "name": "smithery-mcp",
+    "url": "https://registry.smithery.ai/servers",
+    "type": "smithery",
+    "enabled": true,
+    "last_sync": "2026-04-21T14:06:07+07:00"
+  },
+  {
+    "name": "anthropic-skills",
+    "url": "https://api.github.com/repos/anthropics/skills/contents/skills",
+    "type": "github-api",
+    "enabled": true,
+    "last_sync": "2026-04-21T14:06:08+07:00"
+  },
+  {
+    "name": "clawhub-registry",
+    "url": "https://raw.githubusercontent.com/hermes-v2/aigo-registry/main/index.json",
+    "type": "aigo-registry",
+    "enabled": true,
+    "last_sync": "2026-04-21T14:06:08+07:00"
+  }
+]

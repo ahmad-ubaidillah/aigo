@@ -1,34 +1,25 @@
 # Binaries
-/aigo
-/dist/
+*.exe
+aigo
+aigo-*
 
-# Dependencies
-/vendor/
+# Test files
+*_test.go
+*.out
 
 # IDE
 .idea/
 .vscode/
 *.swp
-*.swo
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Build artifacts
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# Local config
+.aigo/
+*.db
 
-# Test artifacts
-*.test
-*.out
-coverage.out
-
-# Config (local overrides)
-.aigo/config.local.yaml
-
-# External references (not part of this repo)
-hermes/
+# Build
+/dist/
+/bin/
