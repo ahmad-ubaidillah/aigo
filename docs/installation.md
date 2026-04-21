@@ -7,20 +7,19 @@ This guide covers all installation methods for Aigo.
 - **Go 1.26+** - For building from source
 - **API Key** - From your preferred AI provider
 
-## Method 1: Build from Source (Recommended)
+## Method 1: One-Line Install (Recommended)
 
 ```bash
-# Clone the repository
+curl -sSL https://raw.githubusercontent.com/ahmad-ubaidillah/aigo/main/install.sh | bash
+```
+
+## Method 2: Build from Source
+
+```bash
 git clone https://github.com/ahmad-ubaidillah/aigo.git
 cd aigo
-
-# Build the binary
 go build -ldflags="-s -w" -o aigo ./cmd/aigo/
-
-# Make it executable
 chmod +x aigo
-
-# Test it
 ./aigo version
 ```
 

@@ -43,15 +43,20 @@
 
 ## Quick Start
 
+### One-Line Install (Recommended)
+
 ```bash
-# Build (optimized)
+curl -sSL https://raw.githubusercontent.com/ahmad-ubaidillah/aigo/main/install.sh | bash
+```
+
+### Or Build from Source
+
+```bash
+git clone https://github.com/ahmad-ubaidillah/aigo.git
+cd aigo
 go build -ldflags="-s -w" -o aigo ./cmd/aigo/
 upx -9 aigo
-
-# Run
-./aigo                         # Interactive chat
-./aigo "Fix bug in auth.go"       # One-shot
-./aigo start                   # Gateway mode
+./aigo "Hello, help me write a Go function"
 ```
 
 ### Configuration
