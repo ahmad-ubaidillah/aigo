@@ -153,19 +153,47 @@ llm:
 
 ## Providers
 
-- OpenAI (GPT-4o, GPT-4o Mini)
-- Anthropic (Claude)
-- OpenRouter (100+ models)
-- Ollama (local)
+60+ AI providers supported. See [Providers](./docs/providers.md) for full list.
+
+### Major
+- OpenAI (GPT-4o, o3)
+- Anthropic (Claude 3.5 Sonnet)
+- Google (Gemini 2.0 Flash)
+- DeepSeek (V3, R1)
+- xAI (Grok-2)
+- Mistral
+
+### Chinese
+- Moonshot (Kimi), GLM/Zhipu, MiniMax, Qwen, Xiaomi MiMo, Baidu, iFlytek
+
+### Aggregators
+- OpenRouter (200+ models), Together AI, Fireworks, DeepInfra
+
+### Local
+- Ollama, vLLM
+
+---
+
+## Documentation
+
+- [Getting Started](./docs/getting-started.md) — Quick start
+- [Installation](./docs/installation.md) — Detailed install
+- [Features](./docs/features.md) — All features
+- [Tools Reference](./docs/tools.md) — Complete tool reference
+- [Providers](./docs/providers.md) — AI providers guide
+
+---
 
 ## Channels
 
-- CLI
-- Telegram
-- Discord
-- Slack
-- WhatsApp
-- WebSocket
+| Platform | Support |
+|----------|---------|
+| CLI | ✅ Default |
+| Telegram | ✅ |
+| Discord | ✅ |
+| Slack | ✅ |
+| WhatsApp | ✅ |
+| WebSocket | ✅ |
 
 ---
 
