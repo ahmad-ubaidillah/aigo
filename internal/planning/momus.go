@@ -2,108 +2,119 @@ package planning
 
 import (
 	"context"
-	"fmt"
 	"strings"
-
-	"github.com/ahmad-ubaidillah/aigo/internal/llm"
 )
 
-// MomusAgent reviews plans with LLM-powered constitution checks.
-type MomusAgent struct {
-	client llm.LLMClient
-	model  string
+type Momus struct {
+	threshold int
+	llmEnabled bool
+	provider  LLMProvider
 }
 
-// ReviewResult contains the outcome of a plan review.
-type ReviewResult struct {
-	Approved    bool
-	Score       int
-	Violations  []Violation
-	Suggestions []string
+type Review struct {
+	Complete    bool
+	Verifiable  bool
+	Score      int
+	Notes      []string
+	CompletenessDetails string
+	VerifiabilityDetails string
 }
 
-// Violation represents a constitution violation.
-type Violation struct {
-	Criterion   string
-	Severity    string
-	StepID      string
-	Description string
-	Suggestion  string
-}
-
-// NewMomusAgent creates a Momus agent.
-func NewMomusAgent(client llm.LLMClient, model string) *MomusAgent {
-	if model == "" {
-		model = "gpt-4o-mini"
+func NewMomus() *Momus {
+	return &Momus{
+		threshold: 3,
 	}
-	return &MomusAgent{client: client, model: model}
 }
 
-// ReviewWithLLM reviews a plan using LLM with constitution criteria.
-func (m *MomusAgent) ReviewWithLLM(ctx context.Context, plan *Plan) (*ReviewResult, error) {
-	if m.client == nil {
-		return m.reviewFallback(plan), nil
+func (m *Momus) SetLLMProvider(provider LLMProvider) {
+	m.provider = provider
+	m.llmEnabled = true
+}
+
+func (m *Momus) ReviewPlan(ctx context.Context, plan *Plan) (*Review, error) {
+	review := &Review{
+		Complete:   m.CheckCompleteness(plan),
+		Verifiable: m.CheckVerifiability(plan),
+		Score:     0,
+		Notes:     make([]string, 0),
 	}
 
-	prompt := fmt.Sprintf("Review this plan against these criteria:\n1. LibraryFirst - starts as standalone library?\n2. TestFirst - tests before implementation?\n3. Simplicity - no over-engineering?\n4. Clarity - steps unambiguous?\n5. Feasibility - achievable with available tools?\n6. Safety - no destructive operations?\n\nTask: %s\nSteps: %d\n", plan.Task, len(plan.Steps))
-	for _, s := range plan.Steps {
-		prompt += fmt.Sprintf("- %s\n", s.Description)
+	if plan == nil {
+		review.Notes = append(review.Notes, "plan is nil")
+		return review, nil
 	}
 
-	messages := []llm.Message{
-		{Role: "system", Content: "You are a ruthless plan reviewer. Find every flaw."},
+	if review.Complete {
+		review.Score += 5
+	}
+	if review.Verifiable {
+		review.Score += 3
+	}
+
+	if m.llmEnabled && m.provider != nil {
+		return m.reviewPlanWithLLM(ctx, plan, review)
+	}
+
+	return review, nil
+}
+
+func (m *Momus) reviewPlanWithLLM(ctx context.Context, plan *Plan, review *Review) (*Review, error) {
+	completenessDetails, err := m.checkCompletenessWithLLM(ctx, plan)
+	if err == nil && completenessDetails != "" {
+		review.CompletenessDetails = completenessDetails
+		if strings.Contains(strings.ToLower(completenessDetails), "complete") {
+			review.Score += 5
+		}
+	}
+
+	verifiabilityDetails, err := m.checkVerifiabilityWithLLM(ctx, plan)
+	if err == nil && verifiabilityDetails != "" {
+		review.VerifiabilityDetails = verifiabilityDetails
+		if strings.Contains(strings.ToLower(verifiabilityDetails), "verifiable") {
+			review.Score += 3
+		}
+	}
+
+	return review, nil
+}
+
+func (m *Momus) checkCompletenessWithLLM(ctx context.Context, plan *Plan) (string, error) {
+	prompt := "Check if this plan is complete. Consider: Are all requirements covered? Are there missing steps?\n\nPlan: " + strings.Join(plan.Steps, ", ")
+
+	messages := []Message{
+		{Role: "system", Content: "You are a plan completeness reviewer."},
 		{Role: "user", Content: prompt},
 	}
 
-	resp, err := m.client.Chat(ctx, messages)
-	if err != nil {
-		return m.reviewFallback(plan), nil
-	}
-
-	return m.parseReviewResponse(plan, resp.Content), nil
+	return m.provider.Chat(ctx, messages)
 }
 
-func (m *MomusAgent) reviewFallback(plan *Plan) *ReviewResult {
-	result := &ReviewResult{Approved: true, Score: 100}
+func (m *Momus) checkVerifiabilityWithLLM(ctx context.Context, plan *Plan) (string, error) {
+	prompt := "Check if this plan is verifiable. Consider: Can each step be verified? Are success criteria clear?\n\nPlan: " + strings.Join(plan.Steps, ", ")
 
-	if len(plan.Steps) < 2 {
-		result.Approved = false
-		result.Score = 20
-		result.Violations = append(result.Violations, Violation{
-			Criterion: "Clarity", Severity: "critical",
-			Description: "Plan has fewer than 2 steps",
-		})
+	messages := []Message{
+		{Role: "system", Content: "You are a plan verifiability reviewer."},
+		{Role: "user", Content: prompt},
 	}
 
-	hasTest := false
-	for _, s := range plan.Steps {
-		if strings.Contains(strings.ToLower(s.Description), "test") {
-			hasTest = true
-		}
-	}
-	if !hasTest {
-		result.Score -= 15
-		result.Violations = append(result.Violations, Violation{
-			Criterion: "TestFirst", Severity: "major",
-			Description: "No test steps found",
-		})
-	}
-
-	if result.Score < 50 {
-		result.Approved = false
-	}
-	return result
+	return m.provider.Chat(ctx, messages)
 }
 
-func (m *MomusAgent) parseReviewResponse(plan *Plan, content string) *ReviewResult {
-	result := m.reviewFallback(plan)
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			result.Suggestions = append(result.Suggestions, line)
+func (m *Momus) CheckCompleteness(plan *Plan) bool {
+	if plan == nil {
+		return false
+	}
+	return len(plan.Steps) >= 1
+}
+
+func (m *Momus) CheckVerifiability(plan *Plan) bool {
+	if plan == nil {
+		return false
+	}
+	for _, step := range plan.Steps {
+		if len(step) > 0 {
+			return true
 		}
 	}
-	result.Score = 75
-	return result
+	return false
 }

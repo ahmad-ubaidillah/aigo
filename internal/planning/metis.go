@@ -2,122 +2,161 @@ package planning
 
 import (
 	"context"
-	"fmt"
 	"strings"
-
-	"github.com/ahmad-ubaidillah/aigo/internal/llm"
 )
 
-// MetisAgent analyzes plans for gaps and risks using LLM.
-type MetisAgent struct {
-	client llm.LLMClient
-	model  string
+type Metis struct {
+	strictness int
+	llmEnabled bool
+	provider  LLMProvider
 }
 
-// NewMetisAgent creates a Metis agent.
-func NewMetisAgent(client llm.LLMClient, model string) *MetisAgent {
-	if model == "" {
-		model = "gpt-4o-mini"
-	}
-	return &MetisAgent{client: client, model: model}
-}
-
-// GapReport contains detected gaps in a plan.
-type GapReport struct {
-	Gaps        []Gap
-	Suggestions []string
-	Confidence  float64
-}
-
-// Gap represents a detected gap in a plan.
 type Gap struct {
-	Type        string
-	StepID      string
+	Type         string
 	Description string
-	Severity    string
-	Suggestion  string
+	Severity    int
+	Assumptions []string
 }
 
-// AnalyzeWithLLM analyzes a plan using LLM for gap detection.
-func (m *MetisAgent) AnalyzeWithLLM(ctx context.Context, plan *Plan) (*GapReport, error) {
-	if m.client == nil {
-		return m.analyzeFallback(plan), nil
+func NewMetis() *Metis {
+	return &Metis{
+		strictness: 5,
+	}
+}
+
+func (m *Metis) SetLLMProvider(provider LLMProvider) {
+	m.provider = provider
+	m.llmEnabled = true
+}
+
+func (m *Metis) AnalyzeGaps(ctx context.Context, plan *Plan) ([]*Gap, error) {
+	gaps := make([]*Gap, 0)
+
+	if plan == nil {
+		gaps = append(gaps, &Gap{
+			Type:        "missing_plan",
+			Description: "Plan is nil",
+			Severity:    3,
+		})
+		return gaps, nil
 	}
 
-	prompt := fmt.Sprintf("Review this plan for gaps, risks, and missing information:\nTask: %s\nSteps: %d\n", plan.Task, len(plan.Steps))
-	for _, s := range plan.Steps {
-		prompt += fmt.Sprintf("- %s (deps: %v)\n", s.Description, s.DependsOn)
+	if len(plan.Steps) == 0 {
+		gaps = append(gaps, &Gap{
+			Type:        "empty_steps",
+			Description: "Plan has no steps",
+			Severity:    2,
+		})
 	}
 
-	messages := []llm.Message{
-		{Role: "system", Content: "You are a gap analysis expert. Identify missing information, risks, and vague steps."},
+	if m.llmEnabled && m.provider != nil {
+		return m.analyzeGapsWithLLM(ctx, plan, gaps)
+	}
+
+	return gaps, nil
+}
+
+func (m *Metis) analyzeGapsWithLLM(ctx context.Context, plan *Plan, gaps []*Gap) ([]*Gap, error) {
+	prompt := "Analyze this plan for gaps, ambiguities, and missing information.\n\nPlan: " + strings.Join(plan.Steps, ", ")
+
+	messages := []Message{
+		{Role: "system", Content: "You are a gap analysis assistant. Identify missing requirements, unclear steps, and potential issues."},
 		{Role: "user", Content: prompt},
 	}
 
-	resp, err := m.client.Chat(ctx, messages)
+	response, err := m.provider.Chat(ctx, messages)
 	if err != nil {
-		return m.analyzeFallback(plan), nil
+		return gaps, nil
 	}
 
-	return m.parseGapResponse(plan, resp.Content), nil
+	if strings.Contains(strings.ToLower(response), "ambiguous") || strings.Contains(strings.ToLower(response), "unclear") {
+		gaps = append(gaps, &Gap{
+			Type:         "llm_detected",
+			Description:  response,
+			Severity:     3,
+			Assumptions: []string{"LLM detected issues"},
+		})
+	}
+
+	return gaps, nil
 }
 
-// EnhancePlan adds missing steps and clarifies vague steps.
-func (m *MetisAgent) EnhancePlan(plan *Plan, gaps []Gap) *Plan {
-	enhanced := *plan
-	enhanced.Steps = make([]Step, len(plan.Steps))
-	copy(enhanced.Steps, plan.Steps)
+func (m *Metis) DetectAmbiguity(inputs []string) *Gap {
+	ambiguousPhrases := []string{"something", "thing", "do it"}
 
-	for _, gap := range gaps {
-		if gap.Type == "MissingTests" {
-			enhanced.AddStep(Step{
-				ID:          fmt.Sprintf("test-%s", gap.StepID),
-				Description: "Add tests for: " + gap.Description,
-				Status:      StatusPending,
-				DependsOn:   []string{gap.StepID},
-			})
-		}
-		if gap.Type == "StepTooVague" {
-			for i, s := range enhanced.Steps {
-				if s.ID == gap.StepID {
-					enhanced.Steps[i].Description = s.Description + " — " + gap.Suggestion
+	for _, input := range inputs {
+		for _, phrase := range ambiguousPhrases {
+			if len(input) < 10 && phrase == input {
+				return &Gap{
+					Type:        "ambiguous",
+					Description: "Input too short: " + input,
+					Severity:    4,
 				}
 			}
 		}
 	}
-	return &enhanced
+
+	if m.llmEnabled && m.provider != nil {
+		return m.detectAmbiguityWithLLM(inputs)
+	}
+
+	return nil
 }
 
-func (m *MetisAgent) analyzeFallback(plan *Plan) *GapReport {
-	report := &GapReport{Confidence: 0.5}
-	for _, s := range plan.Steps {
-		if len(s.DependsOn) == 0 && s.ID != "step-1" {
-			report.Gaps = append(report.Gaps, Gap{
-				Type: "MissingDependencies", StepID: s.ID,
-				Description: s.Description, Severity: "warning",
-				Suggestion: "Declare explicit dependencies",
-			})
-		}
-		if !strings.Contains(strings.ToLower(s.Description), "test") {
-			report.Gaps = append(report.Gaps, Gap{
-				Type: "MissingTests", StepID: s.ID,
-				Description: s.Description, Severity: "info",
-				Suggestion: "Add test step",
-			})
+func (m *Metis) detectAmbiguityWithLLM(inputs []string) *Gap {
+	prompt := "Detect ambiguity in these inputs: " + strings.Join(inputs, ", ")
+
+	messages := []Message{
+		{Role: "system", Content: "You are an ambiguity detection assistant."},
+		{Role: "user", Content: prompt},
+	}
+
+	response, err := m.provider.Chat(context.Background(), messages)
+	if err != nil {
+		return nil
+	}
+
+	if strings.Contains(strings.ToLower(response), "ambiguous") {
+		return &Gap{
+			Type:         "llm_ambiguous",
+			Description:  response,
+			Severity:     3,
+			Assumptions:   inputs,
 		}
 	}
-	return report
+
+	return nil
 }
 
-func (m *MetisAgent) parseGapResponse(plan *Plan, content string) *GapReport {
-	report := m.analyzeFallback(plan)
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line != "" {
-			report.Suggestions = append(report.Suggestions, line)
+func (m *Metis) TrackAssumptions(plan *Plan) []string {
+	assumptions := make([]string, 0)
+
+	for _, step := range plan.Steps {
+		if strings.Contains(step, "?") || strings.Contains(step, "assume") {
+			assumptions = append(assumptions, step)
 		}
 	}
-	report.Confidence = 0.8
-	return report
+
+	if m.llmEnabled && m.provider != nil {
+		llmAssumptions := m.extractAssumptionsWithLLM(plan)
+		assumptions = append(assumptions, llmAssumptions...)
+	}
+
+	return assumptions
+}
+
+func (m *Metis) extractAssumptionsWithLLM(plan *Plan) []string {
+	prompt := "Extract implicit assumptions from this plan: " + strings.Join(plan.Steps, ", ")
+
+	messages := []Message{
+		{Role: "system", Content: "You are an assumption extraction assistant."},
+		{Role: "user", Content: prompt},
+	}
+
+	response, err := m.provider.Chat(context.Background(), messages)
+	if err != nil {
+		return []string{}
+	}
+
+	return []string{response}
 }

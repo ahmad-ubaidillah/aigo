@@ -1,0 +1,31 @@
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+  api_key: "${OPENAI_API_KEY}"
+agent:
+  max_iterations: 90
+  max_tokens: 4096
+  loop_detection: true
+  loop_max_repeats: 3
+memory:
+  enabled: true
+  storage_path: /home/ahmad/.aigo/memory
+  use_fts5: true
+  pyramid_enabled: true
+channels:
+  telegram:
+    enabled: false
+  discord:
+    enabled: false
+  slack:
+    enabled: false
+  websocket:
+    enabled: false
+  whatsapp:
+    enabled: false
+    account_sid: ""
+    auth_token: ""
+    from_number: ""
+webui:
+  enabled: true
+  port: 9090
