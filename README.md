@@ -197,9 +197,10 @@ llm:
 
 ```bash
 # Chat modes
-./aigo chat                    # Interactive chat
+./aigo chat                    # Interactive chat (plain CLI)
+./aigo tui                     # Rich TUI chat (Bubble Tea)
 ./aigo "your message"          # One-shot query
-./aigo start                   # Start gateway server
+./aigo start                   # Start gateway server + Web UI
 
 # Uninstall
 ./aigo uninstall               # Remove binary and data (interactive)

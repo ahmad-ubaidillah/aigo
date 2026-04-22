@@ -59,6 +59,7 @@ import (
 	"github.com/hermes-v2/aigo/internal/subagent"
 	"github.com/hermes-v2/aigo/internal/subagenttools"
 	"github.com/hermes-v2/aigo/internal/tools"
+	"github.com/hermes-v2/aigo/internal/tui"
 	"github.com/hermes-v2/aigo/internal/vectortools"
 	"github.com/hermes-v2/aigo/internal/vision"
 	"github.com/hermes-v2/aigo/internal/webtools"
@@ -77,6 +78,8 @@ func main() {
 	switch cmd {
 	case "chat":
 		cmdChat()
+	case "tui":
+		cmdTUI()
 	case "start":
 		cmdStart()
 	case "skills":
@@ -98,6 +101,7 @@ func printUsage() {
 
 Usage:
   aigo chat                    Start interactive chat (CLI)
+  aigo tui                     Start rich TUI chat (Bubble Tea)
   aigo start                   Start gateway server (all channels)
   aigo uninstall               Remove Aigo binary and data
   aigo <message>               One-shot query
@@ -113,6 +117,30 @@ Environment:
   ANTHROPIC_API_KEY  Anthropic API key
 
 Config: ~/.aigo/config.yaml`)
+}
+
+func cmdTUI() {
+	cfg := loadConfig()
+	pm := buildProviders(cfg)
+	reg := buildTools(cfg)
+
+	a := agent.New(pm, reg, cfg.Agent.MaxIterations, cfg.Agent.MaxTokens, agent.DefaultSystemPrompt())
+
+	runner := func(ctx context.Context, prompt string) (tui.AgentResult, error) {
+		result, err := a.Run(ctx, prompt)
+		if err != nil {
+			return tui.AgentResult{}, err
+		}
+		return tui.AgentResult{
+			Response: result.Response,
+			Steps:    result.Steps,
+			Duration: result.Duration,
+		}, nil
+	}
+
+	if err := tui.Run(runner); err != nil {
+		log.Printf("TUI error: %v", err)
+	}
 }
 
 func cmdChat() {
