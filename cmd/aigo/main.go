@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -80,6 +81,8 @@ func main() {
 		cmdStart()
 	case "skills":
 		cmdSkills(os.Args[2:])
+	case "uninstall":
+		cmdUninstall(os.Args[2:])
 	case "version":
 		fmt.Printf("aigo %s\n", version)
 	case "help", "--help", "-h":
@@ -96,6 +99,7 @@ func printUsage() {
 Usage:
   aigo chat                    Start interactive chat (CLI)
   aigo start                   Start gateway server (all channels)
+  aigo uninstall               Remove Aigo binary and data
   aigo <message>               One-shot query
   aigo version                 Show version
   aigo help                    Show this help
@@ -885,6 +889,80 @@ Usage:
 	default:
 		fmt.Printf("Unknown command: %s\nUse 'aigo skills help' for usage.\n", subcmd)
 	}
+}
+
+func cmdUninstall(args []string) {
+	installDir := os.Getenv("AIGO_INSTALL_DIR")
+	if installDir == "" {
+		installDir = filepath.Join(os.Getenv("HOME"), ".local", "bin")
+	}
+	binaryName := "aigo"
+	dataDir := filepath.Join(os.Getenv("HOME"), ".aigo")
+
+	force := false
+	for _, a := range args {
+		if a == "--yes" || a == "-y" {
+			force = true
+		}
+	}
+
+	// Detect binary
+	binaryPath := filepath.Join(installDir, binaryName)
+	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+		if p, err := exec.LookPath(binaryName); err == nil {
+			binaryPath = p
+		} else {
+			binaryPath = ""
+		}
+	}
+
+	fmt.Println("⚡ Aigo Uninstall")
+	fmt.Println("")
+	fmt.Printf("Binary: %s\n", func() string {
+		if binaryPath == "" {
+			return "not found"
+		}
+		return binaryPath
+	}())
+	fmt.Printf("Data:   %s\n", dataDir)
+	fmt.Println("")
+
+	if !force {
+		fmt.Print("Remove Aigo binary and all data? [y/N] ")
+		reader := bufio.NewReader(os.Stdin)
+		confirm, _ := reader.ReadString('\n')
+		confirm = strings.TrimSpace(confirm)
+		if confirm != "y" && confirm != "Y" {
+			fmt.Println("Cancelled.")
+			return
+		}
+	}
+
+	// Remove binary
+	if binaryPath != "" {
+		if err := os.Remove(binaryPath); err == nil {
+			fmt.Println("✓ Binary removed")
+		} else {
+			fmt.Printf("! Failed to remove binary: %v\n", err)
+		}
+	} else {
+		fmt.Println("! Binary not found")
+	}
+
+	// Remove data
+	if _, err := os.Stat(dataDir); err == nil {
+		if err := os.RemoveAll(dataDir); err == nil {
+			fmt.Println("✓ Data removed")
+		} else {
+			fmt.Printf("! Failed to remove data: %v\n", err)
+		}
+	} else {
+		fmt.Println("! Data directory not found")
+	}
+
+	fmt.Println("")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println("✓ Aigo has been uninstalled.")
 }
 
 func loadConfig() config.Config {

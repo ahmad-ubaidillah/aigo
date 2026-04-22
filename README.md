@@ -49,6 +49,20 @@
 curl -sSL https://raw.githubusercontent.com/ahmad-ubaidillah/aigo/main/install.sh | bash
 ```
 
+### Uninstallation
+
+```bash
+# One-liner uninstall (removes binary + ~/.aigo data)
+curl -fsSL https://raw.githubusercontent.com/ahmad-ubaidillah/aigo/main/scripts/uninstall.sh | bash
+
+# Or uninstall without confirmation
+curl -fsSL https://raw.githubusercontent.com/ahmad-ubaidillah/aigo/main/scripts/uninstall.sh | bash -s -- --yes
+
+# Or via CLI
+./aigo uninstall          # Interactive
+./aigo uninstall --yes    # Skip confirmation
+```
+
 ### Or Build from Source
 
 ```bash
@@ -176,6 +190,30 @@ llm:
 
 ### Local
 - Ollama, vLLM
+
+---
+
+## CLI Commands
+
+```bash
+# Chat modes
+./aigo chat                    # Interactive chat
+./aigo "your message"          # One-shot query
+./aigo start                   # Start gateway server
+
+# Uninstall
+./aigo uninstall               # Remove binary and data (interactive)
+./aigo uninstall --yes         # Skip confirmation
+
+# Version
+./aigo version                 # Show version
+
+# Skill marketplace
+./aigo skills search <query>   # Search skills
+./aigo skills install <id>     # Install skill
+./aigo skills list             # List installed
+./aigo skills sync             # Sync online index
+```
 
 ---
 
