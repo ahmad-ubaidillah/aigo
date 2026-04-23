@@ -106,9 +106,9 @@ func (c *Compressor) Compress(messages []providers.Message) []providers.Message 
 
 	for i := keepFrom; i < len(messages); i++ {
 		msg := messages[i]
-		// Truncate long tool results
-		if msg.Role == "tool" && len(msg.Content) > 2000 {
-			msg.Content = TruncateToolOutput(msg.Content, 2000)
+		// Truncate long tool results aggressively to save tokens
+		if msg.Role == "tool" && len(msg.Content) > 800 {
+			msg.Content = TruncateToolOutput(msg.Content, 800)
 		}
 		result = append(result, msg)
 	}
@@ -138,4 +138,17 @@ func TruncateToolOutput(output string, maxLen int) string {
 	}
 
 	return head + "\n\n... [truncated " + strconv.Itoa(len(output)-headLen-tailLen) + " chars] ...\n\n" + tail
+}
+
+// CompactToolOutput compresses successful tool output into a minimal format.
+// This saves tokens by avoiding full tool output in the LLM context.
+func CompactToolOutput(toolName, output string) string {
+	// Errors are kept as-is (the LLM needs to see errors to fix them)
+	if len(output) >= 6 && output[:6] == "Error:" {
+		return output
+	}
+	if len(output) > 500 {
+		output = TruncateToolOutput(output, 500)
+	}
+	return output
 }

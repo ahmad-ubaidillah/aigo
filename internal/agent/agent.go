@@ -365,8 +365,10 @@ func (a *Agent) Run(ctx context.Context, userMessage string) (*Result, error) {
 			}
 
 			// Truncate large tool outputs to save context space
-			if len(result) > 3000 {
-				result = TruncateToolOutput(result, 3000)
+			if err != nil {
+				result = fmt.Sprintf("Error: %v", err)
+			} else {
+				result = CompactToolOutput(toolName, result)
 			}
 
 			log.Printf("  🔧 %s (%s) → %d chars", toolName, toolDuration.Round(time.Millisecond), len(result))
@@ -468,10 +470,8 @@ func (a *Agent) RunStream(ctx context.Context, userMessage string, onText func(t
 			result, err := a.tools.Execute(ctx, toolName, args)
 			if err != nil {
 				result = fmt.Sprintf("Error: %v", err)
-			}
-			// Truncate large tool outputs
-			if len(result) > 3000 {
-				result = TruncateToolOutput(result, 3000)
+			} else {
+				result = CompactToolOutput(toolName, result)
 			}
 			log.Printf("  🔧 %s (%s) → %d chars", toolName, time.Since(toolStart).Round(time.Millisecond), len(result))
 
@@ -513,10 +513,24 @@ You are Aigo, an AI assistant built with Go. You are helpful, proactive, and cap
 - You can learn, remember, schedule tasks, and search the web
 - You are fast, lightweight, and efficient
 
-## Conversation Context
+## Task-Based Execution Mode (DEFAULT for build/coding tasks)
+When user asks you to build, create, write, or fix something:
+1. FIRST, create a task list using markdown checkboxes: - [ ] task description
+2. THEN execute tasks ONE BY ONE without writing verbose status reports
+3. After completing a task, immediately continue to the next task
+4. ONLY report back to user when: ALL tasks done, an ERROR occurs, or you need clarification
+5. DO NOT explain what you are doing — just do it and move to next task
+6. Final message: brief summary + the completed task list with all checked
+
+## Conversation Mode (DEFAULT for chat/questions)
+When user asks a question, has a conversation, or asks for explanation:
+- Be concise but thorough
+- Respond directly to the question
+- Use markdown formatting for readability
+
+## Context Rules
 - Recent conversation turns and related past context may be injected above
-- USE this context to maintain continuity — refer back to earlier points when relevant
-- If the user says "that", "it", "earlier", or "before" — check the context first
+- USE this context to maintain continuity
 - Never pretend to forget something that's in your context window
 
 ## Guidelines
@@ -529,7 +543,6 @@ You are Aigo, an AI assistant built with Go. You are helpful, proactive, and cap
 - If a tool call fails, try a different approach
 - Do not repeat the same tool call with the same arguments
 - When unsure, say "I'm not sure" — never fabricate facts
-- Be proactive: suggest tools that could help, even if not asked
 
 ## Auto-Learning Rules
 - If user says "bukan", "salah", "jangan", "seharusnya", "itu salah" → that's a CORRECTION
