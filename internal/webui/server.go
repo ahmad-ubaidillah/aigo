@@ -47,6 +47,7 @@ type Server struct {
 	auth      *AuthMiddleware
 	rateLimit *RateLimitMiddleware
 	cors      *CORSMiddleware
+	apiKey    string
 }
 
 // New creates a new Web UI server.
@@ -61,6 +62,7 @@ func New(port int, config interface{}, onSetup func(map[string]interface{}) erro
 
 // SetSecurity configures auth, rate limiting, and CORS.
 func (s *Server) SetSecurity(apiKey string, maxRequests int, rateWindow time.Duration, allowedOrigins []string) {
+	s.apiKey = apiKey
 	s.auth = NewAuthMiddleware(apiKey)
 	s.rateLimit = NewRateLimitMiddleware(maxRequests, rateWindow)
 	s.cors = NewCORSMiddleware(allowedOrigins)
@@ -154,7 +156,18 @@ func (s *Server) Start() error {
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(w, dashboardHTML)
+	html := dashboardHTML
+	if s.apiKey != "" {
+		// Escape the API key for safe JavaScript string literal
+		escaped := strings.ReplaceAll(s.apiKey, `\`, `\\`)
+		escaped = strings.ReplaceAll(escaped, `'`, `\'`)
+		escaped = strings.ReplaceAll(escaped, "\n", `\n`)
+		escaped = strings.ReplaceAll(escaped, "\r", `\r`)
+		html = strings.Replace(html, "/*INJECT_API_KEY*/", escaped, 1)
+	} else {
+		html = strings.Replace(html, "/*INJECT_API_KEY*/", "", 1)
+	}
+	fmt.Fprint(w, html)
 }
 
 func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
