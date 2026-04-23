@@ -386,10 +386,13 @@ function setBusy(busy){
     $('msgInput').disabled=false;
   }
 }
-function updateTypingText(text){
+function showTyping(text){
   const t=$('typingText');
   if(t)t.textContent=text||'Aigo is thinking…';
   $('typing').classList.add('active');
+}
+function hideTyping(){
+  $('typing').classList.remove('active');
 }
 
 function sendMsg(){
@@ -397,9 +400,9 @@ function sendMsg(){
   inp.value='';$('sendBtn').disabled=true;
   setBusy(true);
   addMsg('You',text,true);
-  updateTypingText('Aigo is thinking…');
+  showTyping('Aigo is thinking…');
   let full='',toolsDone=0,currentTool=null;
-  const warnTimer=setTimeout(()=>{if($('sendBtn').disabled)updateTypingText('Still working… this may take a while')},12000);
+  const warnTimer=setTimeout(()=>{if($('sendBtn').disabled)showTyping('Still working… this may take a while')},12000);
   fetch('/api/chat/stream',{method:'POST',headers:API_HEADERS,body:JSON.stringify({message:text})})
     .then(r=>{if(!r.ok)throw new Error('stream');return r.body.getReader()})
     .then(reader=>{
@@ -408,10 +411,9 @@ function sendMsg(){
         if(done){
           clearTimeout(warnTimer);
           addMsg('Aigo',full,false);
-          $('typing').classList.remove('active');
+          hideTyping();
           setBusy(false);
           $('sendBtn').disabled=false;inp.focus();
-          updateTypingText('');
           return;
         }
         buf+=dec.decode(value,{stream:true});
@@ -423,9 +425,9 @@ function sendMsg(){
             if(data.chunk){
               full+=data.chunk;
               const toolMatch=data.chunk.match(/\*Running tool: `(.+?)`\*/);
-              if(toolMatch){currentTool=toolMatch[1];updateTypingText('Running '+currentTool+'…');}
+              if(toolMatch){currentTool=toolMatch[1];showTyping('Running '+currentTool+'…');}
               const doneMatch=data.chunk.match(/\*Done \((.+?)\)\*/);
-              if(doneMatch){toolsDone++;currentTool=null;updateTypingText('Aigo is thinking… ('+toolsDone+' tool'+(toolsDone>1?'s':'')+' done)');}
+              if(doneMatch){toolsDone++;currentTool=null;showTyping('Aigo is thinking… ('+toolsDone+' tool'+(toolsDone>1?'s':'')+' done)');}
             }
             if(data.error){full='Error: '+data.error}
           }catch(e){}
@@ -439,7 +441,7 @@ function sendMsg(){
       fetch('/api/chat',{method:'POST',headers:API_HEADERS,body:JSON.stringify({message:text})})
         .then(r=>r.json()).then(j=>{addMsg('Aigo',j.ok?j.response:'Error: '+(j.error||'unknown'),false)})
         .catch(e=>{addMsg('Aigo','Error: '+e.message,false)})
-        .finally(()=>{$('typing').classList.remove('active');setBusy(false);$('sendBtn').disabled=false;inp.focus();updateTypingText('')});
+        .finally(()=>{hideTyping();setBusy(false);$('sendBtn').disabled=false;inp.focus();});
     });
 }
 
