@@ -121,7 +121,7 @@ func DefaultConfig() Config {
 			Model:   "gpt-4o-mini",
 		},
 		Agent: AgentConfig{
-			MaxIterations:  90,
+			MaxIterations:  15,
 			MaxTokens:      4096,
 			LoopDetection:  true,
 			LoopMaxRepeats: 3,

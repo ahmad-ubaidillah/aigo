@@ -148,6 +148,13 @@ func (a *Agent) SetSessionContext(ctx string) {
 	a.sessionCtx = ctx
 }
 
+// SetMaxIter updates the maximum iteration limit.
+func (a *Agent) SetMaxIter(n int) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.maxIter = n
+}
+
 // SetPlanner wires the Planner (Prometheus) into the agent.
 func (a *Agent) SetPlanner(p *planning.Planner) {
 	a.mu.Lock()
@@ -411,8 +418,12 @@ func (a *Agent) RunStream(ctx context.Context, userMessage string, onText func(t
 		// Compress context if too large
 		messages = a.compressor.Compress(messages)
 
+		// Per-step timeout: 60s for LLM call
+		stepCtx, stepCancel := context.WithTimeout(ctx, 60*time.Second)
 		var resp *providers.Response
-		resp, err = provider.Chat(ctx, messages, toolSchemas)
+		resp, err = provider.Chat(stepCtx, messages, toolSchemas)
+		stepCancel()
+
 		if err == nil && resp.Content != "" && onText != nil {
 			onText(resp.Content)
 		}

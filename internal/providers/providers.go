@@ -170,7 +170,7 @@ func NewProvider(name, model string) *OpenAIProvider {
 		baseURL: info.BaseURL,
 		apiKey:  apiKey,
 		model:  model,
-		client: &http.Client{Timeout: 120 * time.Second},
+		client: &http.Client{Timeout: 45 * time.Second},
 		apiMode: info.APIMode,
 	}
 }
@@ -189,7 +189,7 @@ func NewProviderWithAPIKey(name, model, apiKey string) *OpenAIProvider {
 		baseURL: info.BaseURL,
 		apiKey:  apiKey,
 		model:  model,
-		client: &http.Client{Timeout: 120 * time.Second},
+		client: &http.Client{Timeout: 45 * time.Second},
 		apiMode: info.APIMode,
 	}
 }

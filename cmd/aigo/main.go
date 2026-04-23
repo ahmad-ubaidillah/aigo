@@ -648,6 +648,11 @@ func cmdStart() {
 
 		// Wire streaming chat handler for SSE
 		ui.SetChatStreamHandler(func(msg string, onChunk func(string)) (string, error) {
+			// Limit iterations for WebUI streaming to prevent long hangs
+			oldMaxIter := cfg.Agent.MaxIterations
+			a.SetMaxIter(10)
+			defer a.SetMaxIter(oldMaxIter)
+
 			// 1. Save user turn
 			if autoMem != nil {
 				autoMem.AddTurn("user", msg)
