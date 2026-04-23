@@ -19,12 +19,16 @@ aside{width:260px;background:var(--surface);border-right:1px solid var(--border)
 .history h3{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem}
 .history .new-chat{width:100%;padding:.4rem .6rem;border:1px dashed var(--border);border-radius:var(--radius);background:transparent;color:var(--muted);font-size:.8rem;cursor:pointer;margin-bottom:.5rem;text-align:left}
 .history .new-chat:hover{border-color:var(--accent);color:var(--accent)}
-.history .item{padding:.4rem .5rem;border-radius:var(--radius);cursor:pointer;font-size:.8rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:.4rem}
+.history .clear-all{width:100%;padding:.3rem .6rem;border:none;border-radius:var(--radius);background:transparent;color:var(--muted);font-size:.75rem;cursor:pointer;text-align:left;margin-bottom:.3rem}
+.history .clear-all:hover{color:var(--red)}
+.history .item{padding:.4rem .5rem;border-radius:var(--radius);cursor:pointer;font-size:.8rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:.4rem;position:relative}
 .history .item:hover{background:rgba(88,166,255,.08)}
 .history .item.active{background:rgba(88,166,255,.12);color:var(--accent)}
 .history .item .del{opacity:0;margin-left:auto;font-size:.75rem;color:var(--muted)}
 .history .item:hover .del{opacity:1}
 .history .item .del:hover{color:var(--red)}
+.history .item .unread{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;animation:pulse-dot 1.2s infinite}
+.history .item .stream-dot{width:7px;height:7px;border-radius:50%;background:#f0883e;flex-shrink:0;animation:pulse-dot 1.2s infinite}
 .stats{padding:.75rem 1rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted);line-height:1.6}
 .stats .row{display:flex;justify-content:space-between;gap:.5rem;margin-bottom:.2rem}
 main{flex:1;display:flex;flex-direction:column;overflow:hidden}
@@ -235,11 +239,12 @@ html.light .markdown tr:nth-child(even){background:rgba(0,0,0,.02)}
 <div class="toast" id="toast"></div>
 
 <script>
-const API_KEY='/*INJECT_API_KEY*/';
+const API_KEY='/*INJE...EY*/';
 const API_HEADERS={'Content-Type':'application/json'};
 if(API_KEY)API_HEADERS['X-API-Key']=API_KEY;
 const $=id=>document.getElementById(id);
 let currentTab='chat',skillPage='popular',chatId=Date.now(),chats=[];
+let activeStreams={}; // chatId -> {abort,busy}
 
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function toast(msg,ok){const t=$('toast');t.textContent=msg;t.className='toast show '+(ok?'ok':'err');clearTimeout(t._t);t._t=setTimeout(()=>t.className='toast',2500)}
@@ -254,10 +259,19 @@ function loadChats(){try{chats=JSON.parse(localStorage.getItem('aigo-chats')||'[
 function saveChats(){localStorage.setItem('aigo-chats',JSON.stringify(chats.slice(0,50)))}
 function renderHistory(){
   const box=$('historyList');box.innerHTML='';
+  if(chats.length){
+    const clr=document.createElement('button');
+    clr.className='clear-all';clr.textContent='Clear all';
+    clr.onclick=(e)=>{e.stopPropagation();if(confirm('Hapus semua chat?'))clearAllChats()};
+    box.appendChild(clr);
+  }
   chats.forEach(c=>{
     const d=document.createElement('div');d.className='item'+(c.id===chatId?' active':'');
-    d.innerHTML='<span>◆</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">'+esc(c.title||'Untitled')+'</span><span class="del" onclick="event.stopPropagation();delChat('+c.id+')">×</span>';
-    d.onclick=()=>openChat(c.id);
+    let badge='';
+    if(activeStreams[c.id]?.busy)badge='<span class="stream-dot" title="Processing…"></span>';
+    else if(c.unread)badge='<span class="unread" title="New response"></span>';
+    d.innerHTML='<span>◆</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">'+esc(c.title||'Untitled')+'</span>'+badge+'<span class="del" onclick="event.stopPropagation();delChat('+c.id+')">×</span>';
+    d.onclick=()=>{c.unread=false;saveChats();openChat(c.id);};
     box.appendChild(d);
   });
 }
@@ -269,11 +283,29 @@ function newChat(){
   clearTasks();
 }
 function openChat(id){
-  chatId=id;renderHistory();renderMessages();switchTab('chat');
+  const oldId=chatId;
+  chatId=id;
+  // If leaving a chat with active stream, hide busy indicators
+  if(activeStreams[oldId]?.busy&&oldId!==id){
+    if(chatId!==oldId){setBusy(false);hideTyping();$('sendBtn').disabled=false;}
+  }
+  // If entering a chat with active stream, show busy
+  if(activeStreams[chatId]?.busy){
+    setBusy(true);showTyping('Aigo is thinking…');$('sendBtn').disabled=true;
+  }
+  const c=chats.find(x=>x.id===chatId);
+  if(c){c.unread=false;saveChats();}
+  renderHistory();renderMessages();switchTab('chat');
 }
 function delChat(id){
+  if(activeStreams[id]?.abort){activeStreams[id].abort.abort();delete activeStreams[id];}
   chats=chats.filter(c=>c.id!==id);saveChats();renderHistory();
   if(chatId===id&&chats.length){openChat(chats[0].id)}else if(!chats.length){newChat()}
+}
+function clearAllChats(){
+  Object.keys(activeStreams).forEach(k=>{if(activeStreams[k]?.abort)activeStreams[k].abort.abort();});
+  activeStreams={};
+  chats=[];saveChats();newChat();
 }
 function updateChatTitle(text){
   const c=chats.find(x=>x.id===chatId);if(c&&!c.titleSet){c.title=text.slice(0,40);c.titleSet=true;saveChats();renderHistory()}
@@ -397,23 +429,51 @@ function hideTyping(){
 
 function sendMsg(){
   const inp=$('msgInput'),text=inp.value.trim();if(!text)return;
+  const requestChatId=chatId; // capture chat that initiated the request
+
+  // Abort any existing stream for this chat
+  if(activeStreams[requestChatId]?.abort){
+    try{activeStreams[requestChatId].abort.abort();}catch(e){}
+  }
+  const abortController=new AbortController();
+  activeStreams[requestChatId]={abort:abortController,busy:true};
+
   inp.value='';$('sendBtn').disabled=true;
   setBusy(true);
   addMsg('You',text,true);
   showTyping('Aigo is thinking…');
+  renderHistory(); // show stream dot
+
   let full='',toolsDone=0,currentTool=null;
-  const warnTimer=setTimeout(()=>{if($('sendBtn').disabled)showTyping('Still working… this may take a while')},12000);
-  fetch('/api/chat/stream',{method:'POST',headers:API_HEADERS,body:JSON.stringify({message:text})})
+  const warnTimer=setTimeout(()=>{
+    if(activeStreams[requestChatId]?.busy&&chatId===requestChatId){
+      showTyping('Still working… this may take a while');
+    }
+  },12000);
+
+  fetch('/api/chat/stream',{method:'POST',headers:API_HEADERS,body:JSON.stringify({message:text}),signal:abortController.signal})
     .then(r=>{if(!r.ok)throw new Error('stream');return r.body.getReader()})
     .then(reader=>{
       const dec=new TextDecoder();let buf='';
       function read(){reader.read().then(({done,value})=>{
         if(done){
           clearTimeout(warnTimer);
-          addMsg('Aigo',full,false);
-          hideTyping();
-          setBusy(false);
-          $('sendBtn').disabled=false;inp.focus();
+          const c=chats.find(x=>x.id===requestChatId);
+          if(c){c.messages.push({role:'bot',text:full});saveChats();}
+          delete activeStreams[requestChatId];
+          if(chatId===requestChatId){
+            hideTyping();
+            setBusy(false);
+            $('sendBtn').disabled=false;inp.focus();
+            renderMessages();
+          }else{
+            // User switched to another chat — mark unread and notify
+            if(c){c.unread=true;saveChats();}
+            setBusy(false);
+            $('sendBtn').disabled=false;
+            renderHistory();
+            toast('New response in "'+(c?.title||'chat')+'"','ok');
+          }
           return;
         }
         buf+=dec.decode(value,{stream:true});
@@ -424,24 +484,57 @@ function sendMsg(){
             const data=JSON.parse(line.slice(6));
             if(data.chunk){
               full+=data.chunk;
-              const toolMatch=data.chunk.match(/\*Running tool: `(.+?)`\*/);
-              if(toolMatch){currentTool=toolMatch[1];showTyping('Running '+currentTool+'…');}
-              const doneMatch=data.chunk.match(/\*Done \((.+?)\)\*/);
-              if(doneMatch){toolsDone++;currentTool=null;showTyping('Aigo is thinking… ('+toolsDone+' tool'+(toolsDone>1?'s':'')+' done)');}
+              // Only update typing indicator if user is still on this chat
+              if(chatId===requestChatId){
+                const toolMatch=data.chunk.match(/\*Running tool: `(.+?)`\*/);
+                if(toolMatch){currentTool=toolMatch[1];showTyping('Running '+currentTool+'…');}
+                const doneMatch=data.chunk.match(/\*Done \((.+?)\)\*/);
+                if(doneMatch){toolsDone++;currentTool=null;showTyping('Aigo is thinking… ('+toolsDone+' tool'+(toolsDone>1?'s':'')+' done)');}
+              }
             }
             if(data.error){full='Error: '+data.error}
           }catch(e){}
         }
         read();
+      }).catch(e=>{
+        // Reader error — try to finish gracefully
+        clearTimeout(warnTimer);
+        delete activeStreams[requestChatId];
+        if(chatId===requestChatId){hideTyping();setBusy(false);$('sendBtn').disabled=false;inp.focus();}
       })}
       read();
     })
-    .catch(()=>{
+    .catch(e=>{
       clearTimeout(warnTimer);
+      if(e.name==='AbortError'){
+        delete activeStreams[requestChatId];
+        if(chatId===requestChatId){hideTyping();setBusy(false);$('sendBtn').disabled=false;inp.focus();}
+        return;
+      }
+      // Non-streaming fallback
       fetch('/api/chat',{method:'POST',headers:API_HEADERS,body:JSON.stringify({message:text})})
-        .then(r=>r.json()).then(j=>{addMsg('Aigo',j.ok?j.response:'Error: '+(j.error||'unknown'),false)})
-        .catch(e=>{addMsg('Aigo','Error: '+e.message,false)})
-        .finally(()=>{hideTyping();setBusy(false);$('sendBtn').disabled=false;inp.focus();});
+        .then(r=>r.json()).then(j=>{
+          const c=chats.find(x=>x.id===requestChatId);
+          if(c){c.messages.push({role:'bot',text:j.ok?j.response:'Error: '+(j.error||'unknown')});saveChats();}
+          if(chatId===requestChatId){
+            hideTyping();
+            renderMessages();
+          }else{
+            if(c){c.unread=true;saveChats();}
+            renderHistory();
+            toast('New response in "'+(c?.title||'chat')+'"','ok');
+          }
+        })
+        .catch(e2=>{
+          const c=chats.find(x=>x.id===requestChatId);
+          if(c){c.messages.push({role:'bot',text:'Error: '+e2.message});saveChats();}
+          if(chatId===requestChatId) renderMessages();
+        })
+        .finally(()=>{
+          delete activeStreams[requestChatId];
+          if(chatId===requestChatId){hideTyping();setBusy(false);$('sendBtn').disabled=false;inp.focus();}
+          else{setBusy(false);$('sendBtn').disabled=false;renderHistory();}
+        });
     });
 }
 
