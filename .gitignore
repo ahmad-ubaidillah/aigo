@@ -24,3 +24,5 @@ sources.json
 # Build
 /dist/
 /bin//hermes/
+hermes
+/hermes/

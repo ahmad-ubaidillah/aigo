@@ -117,6 +117,11 @@ Usage:
   aigo chat                    Start interactive chat (CLI)
   aigo tui                     Start rich TUI chat (Bubble Tea)
   aigo start                   Start gateway server (all channels)
+  aigo doctor                  System health check
+  aigo backup                  Backup ~/.aigo data to tar.gz
+  aigo restore <file.tar.gz>   Restore ~/.aigo from backup
+  aigo export                  Export chat history to JSON
+  aigo update                  Self-update to latest version
   aigo uninstall               Remove Aigo binary and data
   aigo <message>               One-shot query
   aigo version                 Show version

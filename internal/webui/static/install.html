@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aigo Setup</title>
+<style>
+:root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--radius:6px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}
+.card{width:100%;max-width:480px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:2rem}
+.card h1{font-size:1.25rem;font-weight:600;margin-bottom:.25rem}
+.card h1 span{color:var(--accent)}
+.card .sub{font-size:.8rem;color:var(--muted);margin-bottom:1.5rem}
+.field{margin-bottom:1rem}
+.field label{display:block;font-size:.75rem;color:var(--muted);margin-bottom:.3rem;text-transform:uppercase;letter-spacing:.3px}
+.field input,.field select{width:100%;padding:.55rem .7rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:.9rem;outline:none;font-family:inherit}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.btn{width:100%;padding:.65rem;border:none;border-radius:var(--radius);background:var(--accent);color:#fff;font-size:.9rem;cursor:pointer;opacity:.9;margin-top:.5rem}
+.btn:hover{opacity:1}
+.status{margin-top:1rem;padding:.6rem .8rem;border-radius:var(--radius);font-size:.85rem}
+.status.ok{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.2)}
+.status.err{background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.2)}
+.step-title{font-size:.85rem;font-weight:500;margin:1.25rem 0 .5rem;color:var(--text)}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Aigo <span>Setup</span></h1>
+  <div class="sub">Configure your AI agent</div>
+  <form id="f">
+    <div class="step-title">Provider</div>
+    <div class="field">
+      <label>Provider</label>
+      <select name="provider"><option value="nous">Nous Research</option><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="ollama">Ollama</option></select>
+    </div>
+    <div class="field">
+      <label>API Key</label>
+      <input type="password" name="api_key" placeholder="sk-...">
+    </div>
+    <div class="field">
+      <label>Base URL</label>
+      <input type="text" name="base_url" placeholder="https://api.openai.com/v1">
+    </div>
+    <div class="field">
+      <label>Model</label>
+      <input type="text" name="model" placeholder="gpt-4o-mini">
+    </div>
+
+    <div class="step-title">Channels</div>
+    <div class="field">
+      <label>Telegram Token</label>
+      <input type="password" name="telegram_token" placeholder="123456:ABC...">
+    </div>
+    <div class="field">
+      <label>Discord Token</label>
+      <input type="password" name="discord_token" placeholder="MTIz...">
+    </div>
+
+    <div class="step-title">Memory</div>
+    <div class="field">
+      <label>FTS5 Search</label>
+      <select name="use_fts5"><option value="true">Enabled</option><option value="false">Disabled</option></select>
+    </div>
+
+    <button type="submit" class="btn">Start Aigo</button>
+  </form>
+  <div id="s"></div>
+</div>
+<script>
+document.getElementById('f').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const f=new FormData(e.target),cfg=Object.fromEntries(f.entries());
+  cfg.use_fts5=cfg.use_fts5==='true';cfg.memory_enabled=true;
+  const s=document.getElementById('s');
+  s.innerHTML='<div class="status">Saving…</div>';
+  try{
+    const r=await fetch('/install/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
+    const d=await r.json();
+    s.innerHTML=d.ok?'<div class="status ok">Saved! Redirecting…</div>':'<div class="status err">'+(d.error||'Failed')+'</div>';
+    if(d.ok)setTimeout(()=>location.href='/',1500);
+  }catch(e){s.innerHTML='<div class="status err">'+e.message+'</div>'}
+});
+</script>
+</body>
+</html>
