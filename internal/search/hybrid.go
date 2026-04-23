@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -563,14 +562,17 @@ func (h *HybridSearch) GetStats() map[string]int {
 
 	stats := make(map[string]int)
 
-	h.db.QueryRow("SELECT COUNT(*) FROM documents").Scan(&stats["total"])
+	var total int
+	h.db.QueryRow("SELECT COUNT(*) FROM documents").Scan(&total)
+	stats["total"] = total
 
 	var withEmbedding int
 	h.db.QueryRow("SELECT COUNT(*) FROM documents WHERE embedding IS NOT NULL").Scan(&withEmbedding)
 	stats["with_vector"] = withEmbedding
 
 	var compiled int
-	h.db.QueryRow("SELECT COUNT(*) FROM documents WHERE compiled_truth = 1").Scan(&stats["compiled_truth"])
+	h.db.QueryRow("SELECT COUNT(*) FROM documents WHERE compiled_truth = 1").Scan(&compiled)
+	stats["compiled_truth"] = compiled
 
 	return stats
 }

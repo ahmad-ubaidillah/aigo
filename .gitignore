@@ -19,7 +19,8 @@ Thumbs.db
 # Local config
 .aigo/
 *.db
+sources.json
 
 # Build
 /dist/
-/bin/
+/bin//hermes/

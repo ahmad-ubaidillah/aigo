@@ -202,7 +202,13 @@ llm:
 ./aigo "your message"          # One-shot query
 ./aigo start                   # Start gateway server + Web UI
 
-# Uninstall
+# System
+./aigo doctor                  # Health check (config, provider, data dir)
+./aigo backup                  # Backup ~/.aigo to tar.gz
+./aigo backup -o /path/to/backup.tar.gz
+./aigo restore <backup.tar.gz> # Restore ~/.aigo from backup
+./aigo export                  # Export chat history to JSON
+./aigo update                  # Self-update via go install
 ./aigo uninstall               # Remove binary and data (interactive)
 ./aigo uninstall --yes         # Skip confirmation
 

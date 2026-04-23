@@ -206,7 +206,25 @@ func Load(path string) (Config, error) {
 		cfg.Provider.Providers["anthropic"] = ProviderEntry{APIKey: v}
 	}
 
+	// Expand ~ and env vars in all paths
+	cfg.Memory.StoragePath = ExpandPath(cfg.Memory.StoragePath)
+
 	return cfg, nil
+}
+
+// ExpandPath expands ~ to the user's home directory and resolves environment variables.
+func ExpandPath(path string) string {
+	if path == "" {
+		return path
+	}
+	// Expand $HOME and other env vars
+	path = os.ExpandEnv(path)
+	// Expand ~
+	if strings.HasPrefix(path, "~/") {
+		home, _ := os.UserHomeDir()
+		path = filepath.Join(home, path[2:])
+	}
+	return path
 }
 
 // normalizeLegacyConfig converts old YAML format to new format for backward compat.

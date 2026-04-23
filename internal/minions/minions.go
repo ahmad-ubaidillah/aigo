@@ -134,7 +134,11 @@ func (q *JobQueue) Submit(name string, params map[string]interface{}, parentID i
 		return 0, err
 	}
 
-	return result.LastInsertId(), nil
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
 }
 
 func (q *JobQueue) SubmitBatch(name string, items []map[string]interface{}, parentID int64) ([]int64, error) {
@@ -382,7 +386,9 @@ func (q *JobQueue) Stats() (map[string]int, error) {
 		stats[status] = count
 	}
 
-	q.db.QueryRow("SELECT COUNT(*) FROM jobs").Scan(&stats["total"])
+	var total int
+	q.db.QueryRow("SELECT COUNT(*) FROM jobs").Scan(&total)
+	stats["total"] = total
 
 	return stats, nil
 }

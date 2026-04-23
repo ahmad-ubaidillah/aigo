@@ -35,6 +35,11 @@ type Server struct {
 
 	// Skill hub
 	skillHub *skillhub.OnlineHub
+
+	// Security middleware
+	auth      *AuthMiddleware
+	rateLimit *RateLimitMiddleware
+	cors      *CORSMiddleware
 }
 
 // New creates a new Web UI server.
@@ -45,6 +50,13 @@ func New(port int, config interface{}, onSetup func(map[string]interface{}) erro
 		onSetup:   onSetup,
 		startTime: time.Now(),
 	}
+}
+
+// SetSecurity configures auth, rate limiting, and CORS.
+func (s *Server) SetSecurity(apiKey string, maxRequests int, rateWindow time.Duration, allowedOrigins []string) {
+	s.auth = NewAuthMiddleware(apiKey)
+	s.rateLimit = NewRateLimitMiddleware(maxRequests, rateWindow)
+	s.cors = NewCORSMiddleware(allowedOrigins)
 }
 
 func (s *Server) SetChatHandler(fn func(string) (string, error)) {
@@ -77,26 +89,42 @@ func (s *Server) IncrMessages() {
 func (s *Server) Start() error {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", s.handleDashboard)
-	mux.HandleFunc("/install", s.handleInstall)
-	mux.HandleFunc("/install/api", s.handleInstallAPI)
-	mux.HandleFunc("/api/status", s.handleStatus)
-	mux.HandleFunc("/api/config", s.handleConfig)
-	mux.HandleFunc("/api/config/save", s.handleConfigSave)
-	mux.HandleFunc("/api/chat", s.handleChat)
-	mux.HandleFunc("/api/chat/stream", s.handleChatStream)
-	mux.HandleFunc("/api/stats", s.handleStats)
+	// Wrap helper: applies cors -> rateLimit -> auth -> handler
+	wrap := func(h http.HandlerFunc) http.HandlerFunc {
+		if s.cors != nil {
+			h = s.cors.Wrap(h)
+		}
+		if s.rateLimit != nil {
+			h = s.rateLimit.Wrap(h)
+		}
+		if s.auth != nil {
+			h = s.auth.Wrap(h)
+		}
+		return h
+	}
+
+	mux.HandleFunc("/", wrap(s.handleDashboard))
+	mux.HandleFunc("/install", wrap(s.handleInstall))
+	mux.HandleFunc("/install/api", wrap(s.handleInstallAPI))
+	mux.HandleFunc("/api/status", wrap(s.handleStatus))
+	mux.HandleFunc("/health", wrap(s.handleHealth))
+	mux.HandleFunc("/ready", wrap(s.handleReady))
+	mux.HandleFunc("/api/config", wrap(s.handleConfig))
+	mux.HandleFunc("/api/config/save", wrap(s.handleConfigSave))
+	mux.HandleFunc("/api/chat", wrap(s.handleChat))
+	mux.HandleFunc("/api/chat/stream", wrap(s.handleChatStream))
+	mux.HandleFunc("/api/stats", wrap(s.handleStats))
 
 	// Skills API
-	mux.HandleFunc("/api/skills/search", s.handleSkillSearch)
-	mux.HandleFunc("/api/skills/popular", s.handleSkillPopular)
-	mux.HandleFunc("/api/skills/install", s.handleSkillInstall)
-	mux.HandleFunc("/api/skills/sync", s.handleSkillSync)
-	mux.HandleFunc("/api/skills/sources", s.handleSkillSources)
-	mux.HandleFunc("/api/skills/list", s.handleSkillList)
-	mux.HandleFunc("/api/skills/stats", s.handleSkillStats)
-	mux.HandleFunc("/api/skills/detail", s.handleSkillDetail)
-	mux.HandleFunc("/api/skills/browse", s.handleSkillBrowse)
+	mux.HandleFunc("/api/skills/search", wrap(s.handleSkillSearch))
+	mux.HandleFunc("/api/skills/popular", wrap(s.handleSkillPopular))
+	mux.HandleFunc("/api/skills/install", wrap(s.handleSkillInstall))
+	mux.HandleFunc("/api/skills/sync", wrap(s.handleSkillSync))
+	mux.HandleFunc("/api/skills/sources", wrap(s.handleSkillSources))
+	mux.HandleFunc("/api/skills/list", wrap(s.handleSkillList))
+	mux.HandleFunc("/api/skills/stats", wrap(s.handleSkillStats))
+	mux.HandleFunc("/api/skills/detail", wrap(s.handleSkillDetail))
+	mux.HandleFunc("/api/skills/browse", wrap(s.handleSkillBrowse))
 
 	addr := fmt.Sprintf(":%d", s.port)
 	log.Printf("🌐 Web UI: http://localhost%s", addr)
@@ -231,6 +259,19 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		"status":  "running",
 		"uptime":  time.Since(s.startTime).Round(time.Second).String(),
 		"version": "0.3.0",
+	})
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{"status": "healthy"})
+}
+
+func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "ready",
+		"uptime": time.Since(s.startTime).Round(time.Second).String(),
 	})
 }
 

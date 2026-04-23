@@ -3,7 +3,10 @@ package tui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,10 +31,10 @@ type AgentResult struct {
 
 // Message represents a chat message.
 type Message struct {
-	Role      string
-	Content   string
-	Timestamp time.Time
-	Meta      string
+	Role      string    `json:"role"`
+	Content   string    `json:"content"`
+	Timestamp time.Time `json:"timestamp"`
+	Meta      string    `json:"meta,omitempty"`
 }
 
 // Model is the Bubble Tea model for the chat TUI.
@@ -46,6 +49,8 @@ type Model struct {
 	spinnerIdx int
 	err        error
 	quit       bool
+	showHelp   bool
+	historyPath string
 }
 
 // spinnerFrames is a simple ASCII spinner.
@@ -80,6 +85,13 @@ var (
 	borderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#30363D"))
+
+	helpBoxStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#C9D1D9")).
+			Background(lipgloss.Color("#161B22")).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#58A6FF")).
+			Padding(1, 2)
 )
 
 type responseMsg struct {
@@ -88,6 +100,34 @@ type responseMsg struct {
 }
 
 type tickMsg struct{}
+
+func historyFile() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".aigo", "tui_history.json")
+}
+
+func (m *Model) loadHistory() {
+	if m.historyPath == "" {
+		return
+	}
+	data, err := os.ReadFile(m.historyPath)
+	if err != nil {
+		return
+	}
+	var msgs []Message
+	if json.Unmarshal(data, &msgs) == nil {
+		m.messages = msgs
+	}
+}
+
+func (m *Model) saveHistory() {
+	if m.historyPath == "" {
+		return
+	}
+	_ = os.MkdirAll(filepath.Dir(m.historyPath), 0755)
+	data, _ := json.MarshalIndent(m.messages, "", "  ")
+	_ = os.WriteFile(m.historyPath, data, 0644)
+}
 
 // New creates a new TUI chat model.
 func New(runner AgentRunner) *Model {
@@ -103,12 +143,15 @@ func New(runner AgentRunner) *Model {
 	vp := viewport.New(80, 20)
 	vp.SetContent("")
 
-	return &Model{
-		viewport:  vp,
-		textInput: ti,
-		runner:    runner,
-		messages:  []Message{},
+	m := &Model{
+		viewport:    vp,
+		textInput:   ti,
+		runner:      runner,
+		messages:    []Message{},
+		historyPath: historyFile(),
 	}
+	m.loadHistory()
+	return m
 }
 
 // Init implements tea.Model.
@@ -129,6 +172,18 @@ func (m *Model) tick() tea.Cmd {
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
+	if m.showHelp {
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			m.showHelp = false
+			return m, nil
+		case tea.WindowSizeMsg:
+			m.width = msg.Width
+			m.height = msg.Height
+		}
+		return m, nil
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -142,7 +197,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
 			m.quit = true
+			m.saveHistory()
 			return m, tea.Quit
+
+		case tea.KeyF1:
+			m.showHelp = true
+			return m, nil
 
 		case tea.KeyEnter:
 			if m.loading {
@@ -154,12 +214,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if input == "/quit" || input == "/exit" {
 				m.quit = true
+				m.saveHistory()
 				return m, tea.Quit
 			}
 			if input == "/clear" {
 				m.messages = nil
 				m.textInput.SetValue("")
 				m.refreshViewport()
+				return m, nil
+			}
+			if input == "/help" || input == "?" {
+				m.showHelp = true
+				m.textInput.SetValue("")
 				return m, nil
 			}
 
@@ -177,9 +243,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.runAgent(input)
 
 		case tea.KeyUp:
-			m.viewport.LineUp(1)
+			m.viewport.LineUp(3)
 		case tea.KeyDown:
-			m.viewport.LineDown(1)
+			m.viewport.LineDown(3)
+		case tea.KeyPgUp:
+			m.viewport.LineUp(m.viewport.Height - 2)
+		case tea.KeyPgDown:
+			m.viewport.LineDown(m.viewport.Height - 2)
 		}
 
 	case responseMsg:
@@ -203,6 +273,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Meta:      meta,
 			})
 		}
+		m.saveHistory()
 		m.refreshViewport()
 
 	case tickMsg:
@@ -235,6 +306,10 @@ func (m *Model) runAgent(prompt string) tea.Cmd {
 
 func (m *Model) refreshViewport() {
 	var b strings.Builder
+
+	if len(m.messages) == 0 && !m.loading {
+		b.WriteString(metaStyle.Render("Welcome to Aigo Chat! Press F1 or type /help for keybindings.\n\n"))
+	}
 
 	for _, msg := range m.messages {
 		switch msg.Role {
@@ -279,10 +354,35 @@ func (m *Model) refreshViewport() {
 	m.viewport.GotoBottom()
 }
 
+func helpContent() string {
+	lines := []string{
+		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#58A6FF")).Render("Aigo Chat Keybindings"),
+		"",
+		"Enter        Send message",
+		"Esc / Ctrl+C Quit",
+		"F1 / ?       Toggle this help",
+		"↑ / ↓        Scroll messages",
+		"PgUp / PgDn  Scroll by page",
+		"",
+		"Commands:",
+		"  /clear     Clear chat history",
+		"  /quit      Exit chat",
+		"  /help      Show this help",
+		"",
+		"Press any key to close...",
+	}
+	return strings.Join(lines, "\n")
+}
+
 // View implements tea.Model.
 func (m *Model) View() string {
 	if m.quit {
 		return ""
+	}
+
+	if m.showHelp {
+		box := helpBoxStyle.Render(helpContent())
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, box)
 	}
 
 	header := headerStyle.Render("  Aigo Chat — Execute with Zen  ")
@@ -292,7 +392,7 @@ func (m *Model) View() string {
 
 	inputLine := inputStyle.Render(m.textInput.View())
 
-	help := metaStyle.Render("enter: send · /clear: clear · /quit: exit · ↑↓: scroll")
+	help := metaStyle.Render("enter: send · /clear: clear · /quit: exit · F1: help · ↑↓: scroll")
 	if m.width > 0 {
 		help = metaStyle.Width(m.width - 2).Render(help)
 	}

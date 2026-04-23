@@ -3,10 +3,14 @@
 package main
 
 import (
+	"archive/tar"
 	"bufio"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -86,6 +90,16 @@ func main() {
 		cmdSkills(os.Args[2:])
 	case "uninstall":
 		cmdUninstall(os.Args[2:])
+	case "doctor":
+		cmdDoctor()
+	case "backup":
+		cmdBackup(os.Args[2:])
+	case "restore":
+		cmdRestore(os.Args[2:])
+	case "export":
+		cmdExport(os.Args[2:])
+	case "update":
+		cmdUpdate(os.Args[2:])
 	case "version":
 		fmt.Printf("aigo %s\n", version)
 	case "help", "--help", "-h":
@@ -566,6 +580,8 @@ func cmdStart() {
 	// Start Web UI
 	if cfg.WebUI.Enabled {
 		ui := webui.New(cfg.WebUI.Port, cfg, nil)
+		// Configure security: use provider API key as auth token, 60 req/min rate limit
+		ui.SetSecurity(cfg.Provider.APIKey, 60, time.Minute, nil)
 
 		// Initialize skill hub
 		skillHub, err := skillhub.NewOnlineHub("")
@@ -993,11 +1009,282 @@ func cmdUninstall(args []string) {
 	fmt.Println("✓ Aigo has been uninstalled.")
 }
 
+func cmdDoctor() {
+	fmt.Println("🩺 Aigo Doctor — System Health Check")
+	fmt.Println("")
+	issues := 0
+	fixed := 0
+
+	// Check config
+	cfgPath := os.Getenv("AIGO_CONFIG")
+	if cfgPath == "" {
+		cfgPath = config.ConfigPath()
+	}
+	cfgPath = config.ExpandPath(cfgPath)
+	fmt.Printf("Config file:      %s ", cfgPath)
+	if _, err := os.Stat(cfgPath); err == nil {
+		fmt.Println("✓")
+	} else {
+		fmt.Println("✗ not found")
+		issues++
+	}
+
+	// Check data dir
+	dataDir := filepath.Join(os.Getenv("HOME"), ".aigo")
+	fmt.Printf("Data directory:   %s ", dataDir)
+	if info, err := os.Stat(dataDir); err == nil {
+		if info.IsDir() {
+			fmt.Println("✓")
+		} else {
+			fmt.Println("✗ is a file, not directory")
+			issues++
+		}
+	} else {
+		fmt.Println("✗ not found")
+		if err := os.MkdirAll(dataDir, 0755); err == nil {
+			fmt.Println("                  → created automatically")
+			fixed++
+		} else {
+			fmt.Printf("                  → failed to create: %v\n", err)
+			issues++
+		}
+	}
+
+	// Check binary
+	self, _ := os.Executable()
+	fmt.Printf("Binary path:      %s ", self)
+	if self != "" {
+		fmt.Println("✓")
+	} else {
+		fmt.Println("✗")
+		issues++
+	}
+
+	// Check provider API key
+	cfg := loadConfig()
+	fmt.Printf("Provider:         %s ", cfg.Provider.Default)
+	if cfg.Provider.APIKey != "" {
+		fmt.Println("✓ (key set)")
+	} else {
+		fmt.Println("⚠ (no key)")
+		issues++
+	}
+
+	// Check model
+	fmt.Printf("Model:            %s ", cfg.Provider.Model)
+	if cfg.Provider.Model != "" {
+		fmt.Println("✓")
+	} else {
+		fmt.Println("✗ not set")
+		issues++
+	}
+
+	// Check Go (for update)
+	fmt.Printf("Go installed:     ")
+	if _, err := exec.LookPath("go"); err == nil {
+		fmt.Println("✓")
+	} else {
+		fmt.Println("✗ (needed for update)")
+		issues++
+	}
+
+	// Check web UI port availability (optional)
+	if cfg.WebUI.Enabled {
+		fmt.Printf("WebUI port:       %d ", cfg.WebUI.Port)
+		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.WebUI.Port))
+		if err != nil {
+			fmt.Println("⚠ (in use or unavailable)")
+		} else {
+			ln.Close()
+			fmt.Println("✓")
+		}
+	}
+
+	fmt.Println("")
+	if issues == 0 {
+		fmt.Println("✅ All checks passed. Aigo is healthy.")
+	} else {
+		fmt.Printf("⚠️  %d issue(s) found, %d fixed automatically.\n", issues, fixed)
+		fmt.Println("   Run 'aigo config' to edit settings.")
+	}
+}
+
+func cmdBackup(args []string) {
+	dataDir := filepath.Join(os.Getenv("HOME"), ".aigo")
+	outPath := filepath.Join(os.Getenv("HOME"), fmt.Sprintf("aigo-backup-%s.tar.gz", time.Now().Format("20060102-150405")))
+
+	for i, a := range args {
+		if a == "--output" || a == "-o" {
+			if i+1 < len(args) {
+				outPath = args[i+1]
+			}
+		}
+	}
+
+	fmt.Printf("💾 Backing up %s → %s\n", dataDir, outPath)
+	f, err := os.Create(outPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create backup: %v\n", err)
+		return
+	}
+	defer f.Close()
+
+	gw := gzip.NewWriter(f)
+	defer gw.Close()
+	w := tar.NewWriter(gw)
+	defer w.Close()
+
+	baseLen := len(dataDir)
+	filepath.Walk(dataDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		header, err := tar.FileInfoHeader(info, info.Name())
+		if err != nil {
+			return nil
+		}
+		header.Name = filepath.ToSlash(path[baseLen:])
+		if err := w.WriteHeader(header); err != nil {
+			return nil
+		}
+		if !info.IsDir() {
+			data, err := os.Open(path)
+			if err == nil {
+				io.Copy(w, data)
+				data.Close()
+			}
+		}
+		return nil
+	})
+
+	fmt.Printf("✅ Backup saved: %s\n", outPath)
+}
+
+func cmdRestore(args []string) {
+	if len(args) < 1 {
+		fmt.Println("Usage: aigo restore <backup.tar.gz>")
+		return
+	}
+	src := args[0]
+	dataDir := filepath.Join(os.Getenv("HOME"), ".aigo")
+
+	fmt.Printf("📦 Restoring %s → %s\n", src, dataDir)
+	f, err := os.Open(src)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to open backup: %v\n", err)
+		return
+	}
+	defer f.Close()
+
+	gr, err := gzip.NewReader(f)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to read gzip: %v\n", err)
+		return
+	}
+	defer gr.Close()
+
+	w := tar.NewReader(gr)
+	for {
+		header, err := w.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Read error: %v\n", err)
+			return
+		}
+		target := filepath.Join(dataDir, header.Name)
+		switch header.Typeflag {
+		case tar.TypeDir:
+			os.MkdirAll(target, os.FileMode(header.Mode))
+		case tar.TypeReg:
+			os.MkdirAll(filepath.Dir(target), 0755)
+			out, err := os.Create(target)
+			if err == nil {
+				io.Copy(out, w)
+				out.Close()
+			}
+		}
+	}
+
+	fmt.Println("✅ Restore complete.")
+}
+
+func cmdExport(args []string) {
+	// Default export chat history
+	dataDir := filepath.Join(os.Getenv("HOME"), ".aigo")
+	outPath := filepath.Join(os.Getenv("HOME"), fmt.Sprintf("aigo-export-%s.json", time.Now().Format("20060102-150405")))
+
+	for i, a := range args {
+		if a == "--output" || a == "-o" {
+			if i+1 < len(args) {
+				outPath = args[i+1]
+			}
+		}
+	}
+
+	historyPath := filepath.Join(dataDir, "chat_history.json")
+	if _, err := os.Stat(historyPath); os.IsNotExist(err) {
+		fmt.Println("No chat history found to export.")
+		return
+	}
+
+	src, err := os.ReadFile(historyPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Read error: %v\n", err)
+		return
+	}
+	if err := os.WriteFile(outPath, src, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "Write error: %v\n", err)
+		return
+	}
+	fmt.Printf("✅ Exported chat history: %s\n", outPath)
+}
+
+func cmdUpdate(args []string) {
+	fmt.Println("🔄 Aigo Self-Update")
+	fmt.Printf("   Current version: %s\n", version)
+
+	// Check if source is available for go install
+	tmpDir, err := os.MkdirTemp("", "aigo-update-*")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create temp dir: %v\n", err)
+		return
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Try go install from GitHub
+	repo := "github.com/ahmad-ubaidillah/aigo/cmd/aigo@latest"
+	fmt.Printf("   Fetching latest via: go install %s\n", repo)
+	cmd := exec.Command("go", "install", repo)
+	cmd.Env = os.Environ()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Update failed: %v\n%s\n", err, string(out))
+		fmt.Println("   Fallback: clone and build manually")
+		cmdClone := exec.Command("git", "clone", "--depth", "1", "https://github.com/ahmad-ubaidillah/aigo.git", tmpDir)
+		if out2, err2 := cmdClone.CombinedOutput(); err2 != nil {
+			fmt.Fprintf(os.Stderr, "Clone failed: %v\n%s\n", err2, string(out2))
+			return
+		}
+		buildCmd := exec.Command("go", "build", "-ldflags=-s -w", "-o", filepath.Join(os.Getenv("HOME"), ".local", "bin", "aigo"), filepath.Join(tmpDir, "cmd", "aigo"))
+		if out3, err3 := buildCmd.CombinedOutput(); err3 != nil {
+			fmt.Fprintf(os.Stderr, "Build failed: %v\n%s\n", err3, string(out3))
+			return
+		}
+		fmt.Println("✅ Built from source successfully.")
+		return
+	}
+	fmt.Println("✅ Updated via go install.")
+	fmt.Println("   Run 'aigo version' to verify.")
+}
+
 func loadConfig() config.Config {
 	cfgPath := os.Getenv("AIGO_CONFIG")
 	if cfgPath == "" {
 		cfgPath = config.ConfigPath()
 	}
+	cfgPath = config.ExpandPath(cfgPath)
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		log.Printf("Config warning: %v", err)

@@ -348,7 +348,7 @@ func (g *Graph) extractEntities(content string) []string {
 
 func (g *Graph) inferLinkType(content, entityName string) string {
 	contentLower := strings.ToLower(content)
-	nameLower := strings.ToLower(entityName)
+	_ = strings.ToLower(entityName)
 
 	patterns := map[string][]string{
 		LinkTypeFounded:     {"founded", "co-founded", "created", "started"},
@@ -477,11 +477,14 @@ func (g *Graph) GetStats() map[string]int {
 
 	stats := make(map[string]int)
 
-	g.db.QueryRow("SELECT COUNT(*) FROM entities").Scan(&stats["entities"])
-	g.db.QueryRow("SELECT COUNT(*) FROM links").Scan(&stats["links"])
-	g.db.QueryRow("SELECT COUNT(*) FROM pages").Scan(&stats["pages"])
+	var count int
+	g.db.QueryRow("SELECT COUNT(*) FROM entities").Scan(&count)
+	stats["entities"] = count
+	g.db.QueryRow("SELECT COUNT(*) FROM links").Scan(&count)
+	stats["links"] = count
+	g.db.QueryRow("SELECT COUNT(*) FROM pages").Scan(&count)
+	stats["pages"] = count
 
-	var typeCounts map[string]int
 	rows, _ := g.db.Query("SELECT type, COUNT(*) FROM entities GROUP BY type")
 	if rows != nil {
 		defer rows.Close()
