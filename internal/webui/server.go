@@ -255,9 +255,8 @@ func (s *Server) handleChatStream(w http.ResponseWriter, r *http.Request) {
 
 	// Send chunk function
 	sendChunk := func(text string) {
-		// Escape newlines for SSE format
-		escaped := strings.ReplaceAll(text, "\n", "\\n")
-		fmt.Fprintf(w, "data: {\"chunk\":\"%s\"}\n\n", escaped)
+		payload, _ := json.Marshal(map[string]string{"chunk": text})
+		fmt.Fprintf(w, "data: %s\n\n", payload)
 		flusher.Flush()
 	}
 
