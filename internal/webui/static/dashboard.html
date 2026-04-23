@@ -525,7 +525,7 @@ function saveSettings(){
 // Init
 loadChats();
 if(!chats.length)newChat();
-else{renderHistory();renderMessages();}
+else{chatId=chats[0].id;renderHistory();renderMessages();}
 $('msgInput').focus();
 </script>
 </body>
