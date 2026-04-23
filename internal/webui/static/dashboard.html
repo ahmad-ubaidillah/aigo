@@ -33,6 +33,9 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .topbar .actions{display:flex;align-items:center;gap:.5rem}
 .topbar .status{display:flex;align-items:center;gap:.4rem;font-size:.75rem;color:var(--muted)}
 .topbar .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.topbar .dot.busy{background:#f0883e;animation:pulse-dot 1.2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
+.topbar .status.busy{color:#f0883e}
 .topbar .theme-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:.25rem .5rem;border-radius:var(--radius);cursor:pointer;font-size:.8rem}
 .topbar .theme-btn:hover{color:var(--text);border-color:var(--text)}
 .content{flex:1;overflow:hidden;position:relative}
@@ -53,10 +56,10 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .msg .copy{opacity:0;transition:opacity .15s;font-size:.65rem;color:var(--muted);cursor:pointer;margin-left:.4rem;vertical-align:middle}
 .msg:hover .copy{opacity:1}
 .msg .copy:hover{color:var(--accent)}
-.typing{display:none;align-items:center;gap:.4rem;padding:0 .85rem;color:var(--muted);font-size:.85rem}
+.typing{display:none;align-items:center;gap:.4rem;padding:.55rem .9rem;color:var(--muted);font-size:.85rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin:0 1.25rem .5rem;align-self:flex-start;max-width:400px;animation:in .2s ease}
 .typing.active{display:flex}
 .typing .dots{display:flex;gap:3px}
-.typing .dot{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:bounce 1.2s infinite}
+.typing .dot{width:5px;height:5px;border-radius:50%;background:var(--accent);animation:bounce 1.2s infinite}
 .typing .dot:nth-child(2){animation-delay:.15s}
 .typing .dot:nth-child(3){animation-delay:.3s}
 @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-4px)}}
@@ -65,6 +68,7 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .inputbar input:focus{border-color:var(--accent)}
 .inputbar button{padding:.55rem 1rem;border:none;border-radius:var(--radius);background:var(--accent);color:#fff;font-size:.85rem;cursor:pointer;opacity:.9}
 .inputbar button:hover{opacity:1}
+.inputbar input:disabled{opacity:.6;border-color:var(--accent);cursor:not-allowed}
 .inputbar button:disabled{opacity:.4;cursor:not-allowed}
 
 /* Skills */
@@ -204,7 +208,7 @@ html.light .markdown tr:nth-child(even){background:rgba(0,0,0,.02)}
     <!-- Chat -->
     <div class="panel active" id="p-chat">
       <div class="messages" id="messages"></div>
-      <div class="typing" id="typing"><span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span><span>Aigo is thinking…</span></div>
+      <div class="typing" id="typing"><span class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span><span id="typingText">Aigo is thinking…</span></div>
       <div class="inputbar">
         <input type="text" id="msgInput" placeholder="Type a message…" autocomplete="off" onkeydown="if(event.key==='Enter')sendMsg()">
         <button id="sendBtn" onclick="sendMsg()">Send</button>
@@ -365,32 +369,77 @@ function switchTab(tab){
   if(window.innerWidth<=640){$('sidebar').classList.remove('open');$('overlay').classList.remove('open')}
 }
 
+function setBusy(busy){
+  const dot=document.querySelector('.topbar .dot');
+  const statusWrap=document.querySelector('.topbar .status');
+  const statusText=$('stStatus');
+  if(!dot||!statusWrap)return;
+  if(busy){
+    dot.classList.add('busy');
+    statusWrap.classList.add('busy');
+    statusText.textContent='Busy';
+    $('msgInput').disabled=true;
+  }else{
+    dot.classList.remove('busy');
+    statusWrap.classList.remove('busy');
+    statusText.textContent='Running';
+    $('msgInput').disabled=false;
+  }
+}
+function updateTypingText(text){
+  const t=$('typingText');
+  if(t)t.textContent=text||'Aigo is thinking…';
+  $('typing').classList.add('active');
+}
+
 function sendMsg(){
   const inp=$('msgInput'),text=inp.value.trim();if(!text)return;
-  inp.value='';$('sendBtn').disabled=true;addMsg('You',text,true);$('typing').classList.add('active');
-  let full='';
+  inp.value='';$('sendBtn').disabled=true;
+  setBusy(true);
+  addMsg('You',text,true);
+  updateTypingText('Aigo is thinking…');
+  let full='',toolsDone=0,currentTool=null;
+  const warnTimer=setTimeout(()=>{if($('sendBtn').disabled)updateTypingText('Still working… this may take a while')},12000);
   fetch('/api/chat/stream',{method:'POST',headers:API_HEADERS,body:JSON.stringify({message:text})})
     .then(r=>{if(!r.ok)throw new Error('stream');return r.body.getReader()})
     .then(reader=>{
       const dec=new TextDecoder();let buf='';
       function read(){reader.read().then(({done,value})=>{
-        if(done){addMsg('Aigo',full,false);$('typing').classList.remove('active');$('sendBtn').disabled=false;inp.focus();updateTypingTask('');return}
+        if(done){
+          clearTimeout(warnTimer);
+          addMsg('Aigo',full,false);
+          $('typing').classList.remove('active');
+          setBusy(false);
+          $('sendBtn').disabled=false;inp.focus();
+          updateTypingText('');
+          return;
+        }
         buf+=dec.decode(value,{stream:true});
         const lines=buf.split('\n');buf=lines.pop()||'';
-        for(const line of lines){if(!line.startsWith('data: '))continue;try{const data=JSON.parse(line.slice(6));if(data.chunk){full+=data.chunk}if(data.error){full='Error: '+data.error}}catch(e){}}
-        // Update task panel and typing indicator in real-time
-        const tasks=extractTasks(full);
-        if(tasks.length)renderTasks(tasks);
-        updateTypingTask(full);
+        for(const line of lines){
+          if(!line.startsWith('data: '))continue;
+          try{
+            const data=JSON.parse(line.slice(6));
+            if(data.chunk){
+              full+=data.chunk;
+              const toolMatch=data.chunk.match(/\*Running tool: `(.+?)`\*/);
+              if(toolMatch){currentTool=toolMatch[1];updateTypingText('Running '+currentTool+'…');}
+              const doneMatch=data.chunk.match(/\*Done \((.+?)\)\*/);
+              if(doneMatch){toolsDone++;currentTool=null;updateTypingText('Aigo is thinking… ('+toolsDone+' tool'+(toolsDone>1?'s':'')+' done)');}
+            }
+            if(data.error){full='Error: '+data.error}
+          }catch(e){}
+        }
         read();
       })}
       read();
     })
     .catch(()=>{
+      clearTimeout(warnTimer);
       fetch('/api/chat',{method:'POST',headers:API_HEADERS,body:JSON.stringify({message:text})})
         .then(r=>r.json()).then(j=>{addMsg('Aigo',j.ok?j.response:'Error: '+(j.error||'unknown'),false)})
         .catch(e=>{addMsg('Aigo','Error: '+e.message,false)})
-        .finally(()=>{$('typing').classList.remove('active');$('sendBtn').disabled=false;inp.focus();updateTypingTask('')});
+        .finally(()=>{$('typing').classList.remove('active');setBusy(false);$('sendBtn').disabled=false;inp.focus();updateTypingText('')});
     });
 }
 
