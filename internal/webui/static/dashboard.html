@@ -5,43 +5,52 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aigo</title>
 <style>
-:root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;--accent:#58a6ff;--accent-dim:#1f6feb;--green:#3fb950;--red:#f85149;--radius:6px}
+:root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#c9d1d9;--muted:#8b949e;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--radius:6px}
+html.light{--bg:#ffffff;--surface:#f6f8fa;--border:#d0d7de;--text:#24292f;--muted:#6e7781;--accent:#0969da;--green:#1a7f37;--red:#cf222e}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
 .app{display:flex;height:100vh}
-aside{width:240px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
-.brand{padding:1.25rem 1rem;border-bottom:1px solid var(--border)}
+aside{width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.brand{padding:1rem 1rem .75rem;border-bottom:1px solid var(--border)}
 .brand h1{font-size:1.1rem;font-weight:600;letter-spacing:-0.3px}
 .brand h1 span{color:var(--accent)}
 .brand .tagline{font-size:.7rem;color:var(--muted);margin-top:.15rem}
-nav{flex:1;padding:.75rem .5rem;overflow-y:auto}
-nav button{display:flex;align-items:center;gap:.6rem;width:100%;padding:.55rem .75rem;border:none;border-radius:var(--radius);background:transparent;color:var(--muted);font-size:.85rem;cursor:pointer;transition:all .12s;margin-bottom:.15rem}
-nav button:hover{background:rgba(88,166,255,.08);color:var(--text)}
-nav button.active{background:rgba(88,166,255,.12);color:var(--accent);font-weight:500}
-nav .icon{width:18px;text-align:center;font-size:.9rem}
-.stats{padding:1rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted);line-height:1.6}
+.history{padding:.5rem .75rem;flex:1;overflow-y:auto;min-height:0}
+.history h3{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem}
+.history .new-chat{width:100%;padding:.4rem .6rem;border:1px dashed var(--border);border-radius:var(--radius);background:transparent;color:var(--muted);font-size:.8rem;cursor:pointer;margin-bottom:.5rem;text-align:left}
+.history .new-chat:hover{border-color:var(--accent);color:var(--accent)}
+.history .item{padding:.4rem .5rem;border-radius:var(--radius);cursor:pointer;font-size:.8rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:.4rem}
+.history .item:hover{background:rgba(88,166,255,.08)}
+.history .item.active{background:rgba(88,166,255,.12);color:var(--accent)}
+.history .item .del{opacity:0;margin-left:auto;font-size:.75rem;color:var(--muted)}
+.history .item:hover .del{opacity:1}
+.history .item .del:hover{color:var(--red)}
+.stats{padding:.75rem 1rem;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted);line-height:1.6}
 .stats .row{display:flex;justify-content:space-between;gap:.5rem;margin-bottom:.2rem}
 main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .topbar{height:48px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 1rem;flex-shrink:0}
 .topbar .title{font-size:.9rem;font-weight:500;color:var(--text)}
+.topbar .actions{display:flex;align-items:center;gap:.5rem}
 .topbar .status{display:flex;align-items:center;gap:.4rem;font-size:.75rem;color:var(--muted)}
 .topbar .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.topbar .theme-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:.25rem .5rem;border-radius:var(--radius);cursor:pointer;font-size:.8rem}
+.topbar .theme-btn:hover{color:var(--text);border-color:var(--text)}
 .content{flex:1;overflow:hidden;position:relative}
 .panel{display:none;flex-direction:column;height:100%}
 .panel.active{display:flex}
 
 /* Chat */
-.messages{flex:1;overflow-y:auto;padding:1rem 1.25rem;display:flex;flex-direction:column;gap:.75rem}
+.messages{flex:1;overflow-y:auto;padding:1rem 1.25rem;display:flex;flex-direction:column;gap:.6rem}
 .msg{max-width:720px;animation:in .18s ease}
 @keyframes in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-.msg .who{font-size:.7rem;color:var(--muted);margin-bottom:.15rem;text-transform:uppercase;letter-spacing:.4px}
+.msg .who{font-size:.65rem;color:var(--muted);margin-bottom:.1rem;text-transform:uppercase;letter-spacing:.4px}
 .msg .who b{color:var(--accent)}
-.msg .bubble{padding:.6rem .85rem;border-radius:var(--radius);font-size:.9rem;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.msg .bubble{padding:.55rem .8rem;border-radius:var(--radius);font-size:.9rem;line-height:1.55;white-space:pre-wrap;word-break:break-word}
 .msg.user{margin-left:auto}
 .msg.user .who{text-align:right}
 .msg.user .bubble{background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.2)}
 .msg.bot .bubble{background:var(--surface);border:1px solid var(--border)}
-.msg .copy{opacity:0;transition:opacity .15s;font-size:.7rem;color:var(--muted);cursor:pointer;margin-left:.5rem}
+.msg .copy{opacity:0;transition:opacity .15s;font-size:.65rem;color:var(--muted);cursor:pointer;margin-left:.4rem;vertical-align:middle}
 .msg:hover .copy{opacity:1}
 .msg .copy:hover{color:var(--accent)}
 .typing{display:none;align-items:center;gap:.4rem;padding:0 .85rem;color:var(--muted);font-size:.85rem}
@@ -120,11 +129,11 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
     <h1>Aigo <span>Agent</span></h1>
     <div class="tagline">Execute with Zen</div>
   </div>
-  <nav>
-    <button class="active" data-tab="chat" onclick="switchTab('chat')"><span class="icon">◆</span> Chat</button>
-    <button data-tab="skills" onclick="switchTab('skills')"><span class="icon">▲</span> Skills</button>
-    <button data-tab="settings" onclick="switchTab('settings')"><span class="icon">⛨</span> Settings</button>
-  </nav>
+  <div class="history" id="historyBox">
+    <h3>History</h3>
+    <button class="new-chat" onclick="newChat()">+ New chat</button>
+    <div id="historyList"></div>
+  </div>
   <div class="stats" id="statsBox">
     <div class="row"><span>Uptime</span><span id="stUptime">-</span></div>
     <div class="row"><span>Messages</span><span id="stMsgs">0</span></div>
@@ -138,7 +147,10 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
       <button class="menu" onclick="toggleMenu()">☰</button>
       <span class="title" id="pageTitle">Chat</span>
     </div>
-    <div class="status"><span class="dot"></span><span id="stStatus">Running</span></div>
+    <div class="actions">
+      <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">◐</button>
+      <div class="status"><span class="dot"></span><span id="stStatus">Running</span></div>
+    </div>
   </div>
   <div class="content">
     <!-- Chat -->
@@ -172,15 +184,62 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 
 <script>
 const $=id=>document.getElementById(id);
-let currentTab='chat',skillPage='popular';
+let currentTab='chat',skillPage='popular',chatId=Date.now(),chats=[];
 
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function toast(msg,ok){const t=$('toast');t.textContent=msg;t.className='toast show '+(ok?'ok':'err');clearTimeout(t._t);t._t=setTimeout(()=>t.className='toast',2500)}
 function toggleMenu(){$('sidebar').classList.toggle('open');$('overlay').classList.toggle('open')}
 
+// Theme
+function toggleTheme(){const isLight=document.documentElement.classList.toggle('light');localStorage.setItem('aigo-theme',isLight?'light':'dark');$('themeBtn').textContent=isLight?'◑':'◐'}
+(function(){if(localStorage.getItem('aigo-theme')==='light'){document.documentElement.classList.add('light');$('themeBtn').textContent='◑'}})();
+
+// Chat history
+function loadChats(){try{chats=JSON.parse(localStorage.getItem('aigo-chats')||'[]')}catch(e){chats=[]}renderHistory()}
+function saveChats(){localStorage.setItem('aigo-chats',JSON.stringify(chats.slice(0,50)))}
+function renderHistory(){
+  const box=$('historyList');box.innerHTML='';
+  chats.forEach(c=>{
+    const d=document.createElement('div');d.className='item'+(c.id===chatId?' active':'');
+    d.innerHTML='<span>◆</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis">'+esc(c.title||'Untitled')+'</span><span class="del" onclick="event.stopPropagation();delChat('+c.id+')">×</span>';
+    d.onclick=()=>openChat(c.id);
+    box.appendChild(d);
+  });
+}
+function newChat(){
+  chatId=Date.now();
+  chats.unshift({id:chatId,title:'New chat',messages:[{role:'bot',text:'Hello! I am Aigo. How can I help?'}],ts:Date.now()});
+  saveChats();renderHistory();renderMessages();
+  switchTab('chat');$('msgInput').focus();
+}
+function openChat(id){
+  chatId=id;renderHistory();renderMessages();switchTab('chat');
+}
+function delChat(id){
+  chats=chats.filter(c=>c.id!==id);saveChats();renderHistory();
+  if(chatId===id&&chats.length){openChat(chats[0].id)}else if(!chats.length){newChat()}
+}
+function updateChatTitle(text){
+  const c=chats.find(x=>x.id===chatId);if(c&&!c.titleSet){c.title=text.slice(0,40);c.titleSet=true;saveChats();renderHistory()}
+}
+function addMsg(who,text,isUser){
+  const c=chats.find(x=>x.id===chatId);if(c){c.messages.push({role:isUser?'user':'bot',text});saveChats();if(isUser)updateChatTitle(text)}
+  renderMessages();
+}
+function renderMessages(){
+  const c=chats.find(x=>x.id===chatId),box=$('messages');
+  box.innerHTML='';
+  if(!c||!c.messages.length){box.innerHTML='<div class="empty">No messages yet</div>';return}
+  c.messages.forEach(m=>{
+    const d=document.createElement('div');d.className='msg '+(m.role==='user'?'user':'bot');
+    d.innerHTML='<div class="who">'+(m.role==='user'?'<b>You</b>':'<b>Aigo</b>')+'</div><div class="bubble">'+esc(m.text)+'<span class="copy" onclick="navigator.clipboard.writeText(this.parentElement.innerText.replace(/copy$/,''))">copy</span></div>';
+    box.appendChild(d);
+  });
+  box.scrollTop=box.scrollHeight;
+}
+
 function switchTab(tab){
   currentTab=tab;
-  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='p-'+tab));
   $('pageTitle').textContent=tab[0].toUpperCase()+tab.slice(1);
   if(tab==='chat')setTimeout(()=>$('msgInput').focus(),50);
@@ -189,40 +248,29 @@ function switchTab(tab){
   if(window.innerWidth<=640){$('sidebar').classList.remove('open');$('overlay').classList.remove('open')}
 }
 
-// Chat
-function addMsg(who,text,isUser){
-  const d=document.createElement('div');d.className='msg '+(isUser?'user':'bot');
-  d.innerHTML='<div class="who">'+(isUser?'<b>You</b>':'<b>Aigo</b>')+'</div><div class="bubble">'+esc(text)+'<span class="copy" onclick="navigator.clipboard.writeText(this.parentElement.innerText)">copy</span></div>';
-  $('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;
-}
-addMsg('Aigo','Hello! I am Aigo. How can I help?',false);
-
 function sendMsg(){
   const inp=$('msgInput'),text=inp.value.trim();if(!text)return;
   inp.value='';$('sendBtn').disabled=true;addMsg('You',text,true);$('typing').classList.add('active');
-  const d=document.createElement('div');d.className='msg bot';
-  d.innerHTML='<div class="who"><b>Aigo</b></div><div class="bubble" id="streamBox">…</div>';
-  $('messages').appendChild(d);$('messages').scrollTop=$('messages').scrollHeight;
   let full='';
   fetch('/api/chat/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})})
     .then(r=>{if(!r.ok)throw new Error('stream');return r.body.getReader()})
     .then(reader=>{
       const dec=new TextDecoder();let buf='';
       function read(){reader.read().then(({done,value})=>{
-        if(done){$('streamBox').innerHTML=esc(full)+'<span class="copy" onclick="navigator.clipboard.writeText(this.parentElement.innerText)">copy</span>';return}
+        if(done){addMsg('Aigo',full,false);$('typing').classList.remove('active');$('sendBtn').disabled=false;inp.focus();return}
         buf+=dec.decode(value,{stream:true});
         const lines=buf.split('\n');buf=lines.pop()||'';
-        for(const line of lines){if(!line.startsWith('data: '))continue;try{const data=JSON.parse(line.slice(6));if(data.chunk){full+=data.chunk;$('streamBox').innerHTML=esc(full)+'…';$('messages').scrollTop=$('messages').scrollHeight}if(data.done){$('streamBox').innerHTML=esc(full)+'<span class="copy" onclick="navigator.clipboard.writeText(this.parentElement.innerText)">copy</span>'}if(data.error){$('streamBox').textContent='Error: '+data.error}}catch(e){}}
+        for(const line of lines){if(!line.startsWith('data: '))continue;try{const data=JSON.parse(line.slice(6));if(data.chunk){full+=data.chunk}if(data.error){full='Error: '+data.error}}catch(e){}}
         read();
       })}
       read();
     })
     .catch(()=>{
       fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})})
-        .then(r=>r.json()).then(j=>{$('streamBox').innerHTML=esc(j.ok?j.response:'Error: '+(j.error||'unknown'))+'<span class="copy" onclick="navigator.clipboard.writeText(this.parentElement.innerText)">copy</span>';})
-        .catch(e=>{$('streamBox').textContent='Error: '+e.message})
-    })
-    .finally(()=>{$('typing').classList.remove('active');$('sendBtn').disabled=false;inp.focus()});
+        .then(r=>r.json()).then(j=>{addMsg('Aigo',j.ok?j.response:'Error: '+(j.error||'unknown'),false)})
+        .catch(e=>{addMsg('Aigo','Error: '+e.message,false)})
+        .finally(()=>{$('typing').classList.remove('active');$('sendBtn').disabled=false;inp.focus()});
+    });
 }
 
 // Stats
@@ -305,6 +353,9 @@ function saveSettings(){
 }
 
 // Init
+loadChats();
+if(!chats.length)newChat();
+else{renderHistory();renderMessages();}
 $('msgInput').focus();
 </script>
 </body>
