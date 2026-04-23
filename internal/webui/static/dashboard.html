@@ -140,6 +140,24 @@ html.light .markdown tr:nth-child(even){background:rgba(0,0,0,.02)}
 .markdown a{color:var(--accent);text-decoration:none}
 .markdown a:hover{text-decoration:underline}
 .markdown hr{border:none;border-top:1px solid var(--border);margin:.6em 0}
+
+/* Tasks Panel */
+.tasks-panel{padding:.75rem 1rem;border-top:1px solid var(--border);max-height:200px;overflow-y:auto}
+.tasks-panel h3{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.4rem}
+.task{display:flex;align-items:center;gap:.4rem;font-size:.78rem;padding:.2rem 0;animation:in .2s ease}
+.task .icon{width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0}
+.task.pending{color:var(--muted)}
+.task.in-progress{color:var(--accent)}
+.task.in-progress .icon{animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.task.completed{color:var(--green);text-decoration:line-through;opacity:.7}
+.task-progress{margin-top:.5rem}
+.progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s;width:0%}
+.progress-text{font-size:.7rem;color:var(--muted);text-align:right;margin-top:.2rem}
+
+/* Enhanced typing indicator with task */
+.typing-task{font-size:.75rem;color:var(--accent);margin-left:.4rem;font-style:italic}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
@@ -161,6 +179,14 @@ html.light .markdown tr:nth-child(even){background:rgba(0,0,0,.02)}
     <div class="row"><span>Messages</span><span id="stMsgs">0</span></div>
     <div class="row"><span>Model</span><span id="stModel">-</span></div>
     <div class="row"><span>Tools</span><span id="stTools">-</span></div>
+  </div>
+  <div class="tasks-panel" id="tasksPanel">
+    <h3>Tasks</h3>
+    <div id="tasksList"></div>
+    <div class="task-progress" id="taskProgress" style="display:none">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText">0/0</div>
+    </div>
   </div>
 </aside>
 <main>
@@ -236,6 +262,7 @@ function newChat(){
   chats.unshift({id:chatId,title:'New chat',messages:[{role:'bot',text:'Hello! I am Aigo. How can I help?'}],ts:Date.now()});
   saveChats();renderHistory();renderMessages();
   switchTab('chat');$('msgInput').focus();
+  clearTasks();
 }
 function openChat(id){
   chatId=id;renderHistory();renderMessages();switchTab('chat');
@@ -263,6 +290,69 @@ function renderMessages(){
     box.appendChild(d);
   });
   box.scrollTop=box.scrollHeight;
+  updateTaskPanel();
+}
+
+// Task tracking
+function extractTasks(text){
+  const tasks=[];
+  const lines=text.split('\n');
+  for(const line of lines){
+    const match=line.match(/^[-*]\s*\[([ xX])\]\s*(.+)$/);
+    if(match){
+      tasks.push({text:match[2].trim(),status:match[1].trim()===''?'pending':'completed'});
+    }
+  }
+  return tasks;
+}
+
+function renderTasks(tasks){
+  const box=$('tasksList');
+  if(!tasks.length){box.innerHTML='<div style="color:var(--muted);font-size:.75rem">No active tasks</div>';$('taskProgress').style.display='none';return}
+  box.innerHTML='';
+  let completed=0;
+  tasks.forEach((t,i)=>{
+    const d=document.createElement('div');d.className='task '+t.status;
+    if(i===0&&t.status==='pending')d.className='task in-progress';
+    const icon=t.status==='completed'?'✓':i===0&&t.status==='pending'?'◐':'○';
+    d.innerHTML='<span class="icon">'+icon+'</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.text)+'</span>';
+    box.appendChild(d);
+    if(t.status==='completed')completed++;
+  });
+  const pct=tasks.length?(completed/tasks.length)*100:0;
+  $('taskProgress').style.display='block';
+  $('progressFill').style.width=pct+'%';
+  $('progressText').textContent=completed+'/'+tasks.length+' done';
+}
+
+function updateTaskPanel(){
+  const c=chats.find(x=>x.id===chatId);
+  if(!c){clearTasks();return}
+  // Find the last bot message that contains tasks
+  let tasks=[];
+  for(let i=c.messages.length-1;i>=0;i--){
+    if(c.messages[i].role==='bot'){
+      const t=extractTasks(c.messages[i].text);
+      if(t.length){tasks=t;break}
+    }
+  }
+  renderTasks(tasks);
+}
+
+function clearTasks(){
+  $('tasksList').innerHTML='<div style="color:var(--muted);font-size:.75rem">No active tasks</div>';
+  $('taskProgress').style.display='none';
+}
+
+function updateTypingTask(text){
+  const tasks=extractTasks(text);
+  const pending=tasks.filter(t=>t.status!=='completed');
+  const span=$('typing').querySelector('span:last-child');
+  if(pending.length&&span){
+    span.innerHTML='Aigo is working on: <b>'+esc(pending[0].text)+'</b>';
+  }else if(span){
+    span.textContent='Aigo is thinking…';
+  }
 }
 
 function switchTab(tab){
@@ -284,10 +374,14 @@ function sendMsg(){
     .then(reader=>{
       const dec=new TextDecoder();let buf='';
       function read(){reader.read().then(({done,value})=>{
-        if(done){addMsg('Aigo',full,false);$('typing').classList.remove('active');$('sendBtn').disabled=false;inp.focus();return}
+        if(done){addMsg('Aigo',full,false);$('typing').classList.remove('active');$('sendBtn').disabled=false;inp.focus();updateTypingTask('');return}
         buf+=dec.decode(value,{stream:true});
         const lines=buf.split('\n');buf=lines.pop()||'';
         for(const line of lines){if(!line.startsWith('data: '))continue;try{const data=JSON.parse(line.slice(6));if(data.chunk){full+=data.chunk}if(data.error){full='Error: '+data.error}}catch(e){}}
+        // Update task panel and typing indicator in real-time
+        const tasks=extractTasks(full);
+        if(tasks.length)renderTasks(tasks);
+        updateTypingTask(full);
         read();
       })}
       read();
@@ -296,7 +390,7 @@ function sendMsg(){
       fetch('/api/chat',{method:'POST',headers:API_HEADERS,body:JSON.stringify({message:text})})
         .then(r=>r.json()).then(j=>{addMsg('Aigo',j.ok?j.response:'Error: '+(j.error||'unknown'),false)})
         .catch(e=>{addMsg('Aigo','Error: '+e.message,false)})
-        .finally(()=>{$('typing').classList.remove('active');$('sendBtn').disabled=false;inp.focus()});
+        .finally(()=>{$('typing').classList.remove('active');$('sendBtn').disabled=false;inp.focus();updateTypingTask('')});
     });
 }
 
