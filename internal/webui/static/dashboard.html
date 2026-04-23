@@ -183,6 +183,9 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 <div class="toast" id="toast"></div>
 
 <script>
+const API_KEY='/*INJECT_API_KEY*/';
+const API_HEADERS={'Content-Type':'application/json'};
+if(API_KEY)API_HEADERS['X-API-Key']=API_KEY;
 const $=id=>document.getElementById(id);
 let currentTab='chat',skillPage='popular',chatId=Date.now(),chats=[];
 
@@ -232,7 +235,7 @@ function renderMessages(){
   if(!c||!c.messages.length){box.innerHTML='<div class="empty">No messages yet</div>';return}
   c.messages.forEach(m=>{
     const d=document.createElement('div');d.className='msg '+(m.role==='user'?'user':'bot');
-    d.innerHTML='<div class="who">'+(m.role==='user'?'<b>You</b>':'<b>Aigo</b>')+'</div><div class="bubble">'+esc(m.text)+'<span class="copy" onclick="navigator.clipboard.writeText(this.parentElement.innerText.replace(/copy$/,''))">copy</span></div>';
+    d.innerHTML='<div class="who">'+(m.role==='user'?'<b>You</b>':'<b>Aigo</b>')+'</div><div class="bubble">'+esc(m.text)+'<span class="copy" onclick="navigator.clipboard.writeText(this.parentElement.innerText.replace(/copy$/,\x27\x27))">copy</span></div>';
     box.appendChild(d);
   });
   box.scrollTop=box.scrollHeight;
@@ -252,7 +255,7 @@ function sendMsg(){
   const inp=$('msgInput'),text=inp.value.trim();if(!text)return;
   inp.value='';$('sendBtn').disabled=true;addMsg('You',text,true);$('typing').classList.add('active');
   let full='';
-  fetch('/api/chat/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})})
+  fetch('/api/chat/stream',{method:'POST',headers:API_HEADERS,body:JSON.stringify({message:text})})
     .then(r=>{if(!r.ok)throw new Error('stream');return r.body.getReader()})
     .then(reader=>{
       const dec=new TextDecoder();let buf='';
@@ -266,7 +269,7 @@ function sendMsg(){
       read();
     })
     .catch(()=>{
-      fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})})
+      fetch('/api/chat',{method:'POST',headers:API_HEADERS,body:JSON.stringify({message:text})})
         .then(r=>r.json()).then(j=>{addMsg('Aigo',j.ok?j.response:'Error: '+(j.error||'unknown'),false)})
         .catch(e=>{addMsg('Aigo','Error: '+e.message,false)})
         .finally(()=>{$('typing').classList.remove('active');$('sendBtn').disabled=false;inp.focus()});
@@ -275,7 +278,7 @@ function sendMsg(){
 
 // Stats
 function loadStats(){
-  fetch('/api/stats').then(r=>r.json()).then(d=>{
+  fetch('/api/stats',{headers:API_HEADERS}).then(r=>r.json()).then(d=>{
     $('stUptime').textContent=d.uptime||'-';$('stMsgs').textContent=d.messages||0;
     $('stModel').textContent=(d.provider||'')+' / '+(d.model||'');$('stTools').textContent=d.tools||0;
   }).catch(()=>{});
@@ -286,7 +289,7 @@ setInterval(loadStats,8000);loadStats();
 function loadSkills(tab){
   skillPage=tab;const box=$('skillsBox');box.innerHTML='<div class="empty">Loading…</div>';
   let url;if(tab==='popular')url='/api/skills/popular?limit=50';else if(tab==='installed')url='/api/skills/list';else if(tab==='sources')url='/api/skills/sources';else url='/api/skills/browse?limit=100';
-  fetch(url).then(r=>r.json()).then(d=>{
+  fetch(url,{headers:API_HEADERS}).then(r=>r.json()).then(d=>{
     if(!d.ok){box.innerHTML='<div class="empty">Error: '+esc(d.error)+'</div>';return}
     if(tab==='sources'){renderSources(d.sources||[],box);return}
     const list=d.skills||[];if(!list.length){box.innerHTML='<div class="empty">No skills found.</div>';return}
@@ -299,9 +302,9 @@ function renderSkill(s,showInstall){
   return row;
 }
 function renderSources(srcs,box){box.innerHTML='';if(!srcs.length){box.innerHTML='<div class="empty">No sources</div>';return}srcs.forEach(s=>{const d=document.createElement('div');d.className='skill-row';d.innerHTML='<div class="left"><div class="name">'+esc(s.name)+'</div><div class="desc">'+esc(s.url)+'</div></div><div class="right"><span class="tag">'+esc(s.type)+'</span></div>';box.appendChild(d)})}
-function searchSkills(){const q=$('skillQ').value.trim();if(!q)return;const box=$('skillsBox');box.innerHTML='<div class="empty">Searching…</div>';fetch('/api/skills/search?q='+encodeURIComponent(q)).then(r=>r.json()).then(d=>{if(!d.ok){box.innerHTML='<div class="empty">'+esc(d.error)+'</div>';return}const list=d.skills||[];if(!list.length){box.innerHTML='<div class="empty">No results</div>';return}box.innerHTML='';list.forEach(s=>box.appendChild(renderSkill(s,true)))}).catch(e=>{box.innerHTML='<div class="empty">'+esc(e.message)+'</div>'})}
-function installSkill(btn,id){btn.textContent='…';btn.disabled=true;fetch('/api/skills/install',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identifier:id})}).then(r=>r.json()).then(d=>{if(d.ok){btn.textContent='Done';btn.classList.add('done');toast('Installed','ok')}else{btn.textContent='Err';toast(d.error,'err')}}).catch(e=>{btn.textContent='Err';toast(e.message,'err')})}
-function syncSkills(){const box=$('skillsBox');box.innerHTML='<div class="empty">Syncing…</div>';fetch('/api/skills/sync',{method:'POST'}).then(r=>r.json()).then(d=>{toast(d.ok?'Synced '+d.total+' skills':'Sync failed',d.ok);loadSkills('popular')}).catch(e=>toast(e.message,'err'))}
+function searchSkills(){const q=$('skillQ').value.trim();if(!q)return;const box=$('skillsBox');box.innerHTML='<div class="empty">Searching…</div>';fetch('/api/skills/search?q='+encodeURIComponent(q),{headers:API_HEADERS}).then(r=>r.json()).then(d=>{if(!d.ok){box.innerHTML='<div class="empty">'+esc(d.error)+'</div>';return}const list=d.skills||[];if(!list.length){box.innerHTML='<div class="empty">No results</div>';return}box.innerHTML='';list.forEach(s=>box.appendChild(renderSkill(s,true)))}).catch(e=>{box.innerHTML='<div class="empty">'+esc(e.message)+'</div>'})}
+function installSkill(btn,id){btn.textContent='…';btn.disabled=true;fetch('/api/skills/install',{method:'POST',headers:API_HEADERS,body:JSON.stringify({identifier:id})}).then(r=>r.json()).then(d=>{if(d.ok){btn.textContent='Done';btn.classList.add('done');toast('Installed','ok')}else{btn.textContent='Err';toast(d.error,'err')}}).catch(e=>{btn.textContent='Err';toast(e.message,'err')})}
+function syncSkills(){const box=$('skillsBox');box.innerHTML='<div class="empty">Syncing…</div>';fetch('/api/skills/sync',{method:'POST',headers:API_HEADERS}).then(r=>r.json()).then(d=>{toast(d.ok?'Synced '+d.total+' skills':'Sync failed',d.ok);loadSkills('popular')}).catch(e=>toast(e.message,'err'))}
 
 // Settings
 const configFields=[
@@ -329,7 +332,7 @@ const configFields=[
 ];
 function loadSettings(){
   const box=$('settingsBox');box.innerHTML='<div class="empty">Loading…</div>';
-  fetch('/api/config').then(r=>r.json()).then(cfg=>{
+  fetch('/api/config',{headers:API_HEADERS}).then(r=>r.json()).then(cfg=>{
     let html='<h2>Settings</h2>';
     configFields.forEach(sec=>{
       html+='<div class="section"><h3>'+esc(sec.section)+'</h3>';
@@ -349,7 +352,7 @@ function loadSettings(){
 }
 function saveSettings(){
   const cfg={};document.querySelectorAll('[data-key]').forEach(el=>{let v=el.value;if(v==='true')v=true;else if(v==='false')v=false;else if(el.type==='number'&&v!=='')v=Number(v);if(v!=='')cfg[el.dataset.key]=v});
-  fetch('/api/config/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)}).then(r=>r.json()).then(d=>toast(d.ok?'Saved':'Error: '+(d.error||''),d.ok)).catch(e=>toast(e.message,'err'));
+  fetch('/api/config/save',{method:'POST',headers:API_HEADERS,body:JSON.stringify(cfg)}).then(r=>r.json()).then(d=>toast(d.ok?'Saved':'Error: '+(d.error||''),d.ok)).catch(e=>toast(e.message,'err'));
 }
 
 // Init
