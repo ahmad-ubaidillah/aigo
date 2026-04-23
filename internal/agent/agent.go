@@ -435,6 +435,10 @@ func (a *Agent) RunStream(ctx context.Context, userMessage string, onText func(t
 			toolName := tc.Function.Name
 			toolArgs := tc.Function.Arguments
 
+			if onText != nil {
+				onText(fmt.Sprintf("\n\n*Running tool: `%s`*\n", toolName))
+			}
+
 			if a.loopDetector.IsLoop(toolName, toolArgs) {
 				loopMsg := fmt.Sprintf("ERROR: Detected repeated tool call '%s'. Try a different approach.", toolName)
 				messages = append(messages, providers.Message{Role: "tool", Content: loopMsg, ToolCallID: tc.ID})
@@ -459,6 +463,10 @@ func (a *Agent) RunStream(ctx context.Context, userMessage string, onText func(t
 				result = TruncateToolOutput(result, 3000)
 			}
 			log.Printf("  🔧 %s (%s) → %d chars", toolName, time.Since(toolStart).Round(time.Millisecond), len(result))
+
+			if onText != nil {
+				onText(fmt.Sprintf("*Done (%s)*\n", time.Since(toolStart).Round(time.Millisecond)))
+			}
 
 			messages = append(messages, providers.Message{Role: "tool", Content: result, ToolCallID: tc.ID})
 		}
