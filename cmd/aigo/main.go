@@ -100,6 +100,8 @@ func main() {
 		cmdExport(os.Args[2:])
 	case "update":
 		cmdUpdate(os.Args[2:])
+	case "service":
+		cmdService(os.Args[2:])
 	case "version":
 		fmt.Printf("aigo %s\n", version)
 	case "help", "--help", "-h":
@@ -122,6 +124,9 @@ Usage:
   aigo restore <file.tar.gz>   Restore ~/.aigo from backup
   aigo export                  Export chat history to JSON
   aigo update                  Self-update to latest version
+  aigo service install         Install systemd autostart service
+  aigo service uninstall       Remove systemd service
+  aigo service start/stop/status  Manage background service
   aigo uninstall               Remove Aigo binary and data
   aigo <message>               One-shot query
   aigo version                 Show version
@@ -1422,4 +1427,105 @@ func getProjectDir() string {
 		return filepath.Join(home, "aigo")
 	}
 	return "/mnt/projects/Aigo"
+}
+
+func cmdService(args []string) {
+	if len(args) < 1 {
+		fmt.Println("Usage: aigo service install | uninstall | start | stop | restart | status | logs")
+		os.Exit(1)
+	}
+	action := args[0]
+	servicePath := filepath.Join(os.Getenv("HOME"), ".config", "systemd", "user", "aigo.service")
+	binPath, _ := exec.LookPath("aigo")
+	if binPath == "" {
+		binPath = filepath.Join(os.Getenv("HOME"), ".local", "bin", "aigo")
+	}
+
+	switch action {
+	case "install":
+		// Ensure config exists
+		cfgDir := filepath.Join(os.Getenv("HOME"), ".aigo")
+		cfgFile := filepath.Join(cfgDir, "config.yaml")
+		if _, err := os.Stat(cfgFile); os.IsNotExist(err) {
+			fmt.Printf("⚠️  Config not found at %s\n", cfgFile)
+			fmt.Println("Run 'aigo' first-time setup or create config.yaml before installing service.")
+			os.Exit(1)
+		}
+		// Read embedded service template
+		tmpl := `[Unit]
+Description=Aigo AI Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=` + binPath + ` start
+Restart=on-failure
+RestartSec=5
+Environment="HOME=` + os.Getenv("HOME") + `"
+
+[Install]
+WantedBy=default.target
+`
+		if err := os.MkdirAll(filepath.Dir(servicePath), 0755); err != nil {
+			fmt.Printf("Error creating directory: %v\n", err)
+			os.Exit(1)
+		}
+		if err := os.WriteFile(servicePath, []byte(tmpl), 0644); err != nil {
+			fmt.Printf("Error writing service file: %v\n", err)
+			os.Exit(1)
+		}
+		// Reload and enable
+		exec.Command("systemctl", "--user", "daemon-reload").Run()
+		exec.Command("systemctl", "--user", "enable", "aigo").Run()
+		fmt.Println("✅ Aigo service installed and enabled.")
+		fmt.Println("   Start now: aigo service start")
+		fmt.Println("   Autostart on boot: enabled")
+
+	case "uninstall":
+		exec.Command("systemctl", "--user", "stop", "aigo").Run()
+		exec.Command("systemctl", "--user", "disable", "aigo").Run()
+		os.Remove(servicePath)
+		exec.Command("systemctl", "--user", "daemon-reload").Run()
+		fmt.Println("✅ Aigo service uninstalled.")
+
+	case "start":
+		out, err := exec.Command("systemctl", "--user", "start", "aigo").CombinedOutput()
+		if err != nil {
+			fmt.Printf("Error: %v\n%s\n", err, out)
+			os.Exit(1)
+		}
+		fmt.Println("🚀 Aigo service started.")
+
+	case "stop":
+		out, err := exec.Command("systemctl", "--user", "stop", "aigo").CombinedOutput()
+		if err != nil {
+			fmt.Printf("Error: %v\n%s\n", err, out)
+			os.Exit(1)
+		}
+		fmt.Println("🛑 Aigo service stopped.")
+
+	case "restart":
+		out, err := exec.Command("systemctl", "--user", "restart", "aigo").CombinedOutput()
+		if err != nil {
+			fmt.Printf("Error: %v\n%s\n", err, out)
+			os.Exit(1)
+		}
+		fmt.Println("🔄 Aigo service restarted.")
+
+	case "status":
+		out, _ := exec.Command("systemctl", "--user", "status", "aigo").CombinedOutput()
+		fmt.Println(string(out))
+
+	case "logs":
+		cmd := exec.Command("journalctl", "--user", "-u", "aigo", "-f")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Run()
+
+	default:
+		fmt.Printf("Unknown service action: %s\n", action)
+		fmt.Println("Usage: aigo service install | uninstall | start | stop | restart | status | logs")
+		os.Exit(1)
+	}
 }

@@ -96,8 +96,19 @@ func (s *Server) IncrMessages() {
 func (s *Server) Start() error {
 	mux := http.NewServeMux()
 
-	// Wrap helper: applies cors -> rateLimit -> auth -> handler
-	wrap := func(h http.HandlerFunc) http.HandlerFunc {
+	// Public wrapper: cors -> rateLimit -> handler (no auth)
+	wrapPub := func(h http.HandlerFunc) http.HandlerFunc {
+		if s.cors != nil {
+			h = s.cors.Wrap(h)
+		}
+		if s.rateLimit != nil {
+			h = s.rateLimit.Wrap(h)
+		}
+		return h
+	}
+
+	// API wrapper: cors -> rateLimit -> auth -> handler
+	wrapAPI := func(h http.HandlerFunc) http.HandlerFunc {
 		if s.cors != nil {
 			h = s.cors.Wrap(h)
 		}
@@ -110,28 +121,31 @@ func (s *Server) Start() error {
 		return h
 	}
 
-	mux.HandleFunc("/", wrap(s.handleDashboard))
-	mux.HandleFunc("/install", wrap(s.handleInstall))
-	mux.HandleFunc("/install/api", wrap(s.handleInstallAPI))
-	mux.HandleFunc("/api/status", wrap(s.handleStatus))
-	mux.HandleFunc("/health", wrap(s.handleHealth))
-	mux.HandleFunc("/ready", wrap(s.handleReady))
-	mux.HandleFunc("/api/config", wrap(s.handleConfig))
-	mux.HandleFunc("/api/config/save", wrap(s.handleConfigSave))
-	mux.HandleFunc("/api/chat", wrap(s.handleChat))
-	mux.HandleFunc("/api/chat/stream", wrap(s.handleChatStream))
-	mux.HandleFunc("/api/stats", wrap(s.handleStats))
+	// Public HTML pages
+	mux.HandleFunc("/", wrapPub(s.handleDashboard))
+	mux.HandleFunc("/install", wrapPub(s.handleInstall))
+	mux.HandleFunc("/health", wrapPub(s.handleHealth))
+	mux.HandleFunc("/ready", wrapPub(s.handleReady))
+
+	// API endpoints (protected)
+	mux.HandleFunc("/install/api", wrapAPI(s.handleInstallAPI))
+	mux.HandleFunc("/api/status", wrapAPI(s.handleStatus))
+	mux.HandleFunc("/api/config", wrapAPI(s.handleConfig))
+	mux.HandleFunc("/api/config/save", wrapAPI(s.handleConfigSave))
+	mux.HandleFunc("/api/chat", wrapAPI(s.handleChat))
+	mux.HandleFunc("/api/chat/stream", wrapAPI(s.handleChatStream))
+	mux.HandleFunc("/api/stats", wrapAPI(s.handleStats))
 
 	// Skills API
-	mux.HandleFunc("/api/skills/search", wrap(s.handleSkillSearch))
-	mux.HandleFunc("/api/skills/popular", wrap(s.handleSkillPopular))
-	mux.HandleFunc("/api/skills/install", wrap(s.handleSkillInstall))
-	mux.HandleFunc("/api/skills/sync", wrap(s.handleSkillSync))
-	mux.HandleFunc("/api/skills/sources", wrap(s.handleSkillSources))
-	mux.HandleFunc("/api/skills/list", wrap(s.handleSkillList))
-	mux.HandleFunc("/api/skills/stats", wrap(s.handleSkillStats))
-	mux.HandleFunc("/api/skills/detail", wrap(s.handleSkillDetail))
-	mux.HandleFunc("/api/skills/browse", wrap(s.handleSkillBrowse))
+	mux.HandleFunc("/api/skills/search", wrapAPI(s.handleSkillSearch))
+	mux.HandleFunc("/api/skills/popular", wrapAPI(s.handleSkillPopular))
+	mux.HandleFunc("/api/skills/install", wrapAPI(s.handleSkillInstall))
+	mux.HandleFunc("/api/skills/sync", wrapAPI(s.handleSkillSync))
+	mux.HandleFunc("/api/skills/sources", wrapAPI(s.handleSkillSources))
+	mux.HandleFunc("/api/skills/list", wrapAPI(s.handleSkillList))
+	mux.HandleFunc("/api/skills/stats", wrapAPI(s.handleSkillStats))
+	mux.HandleFunc("/api/skills/detail", wrapAPI(s.handleSkillDetail))
+	mux.HandleFunc("/api/skills/browse", wrapAPI(s.handleSkillBrowse))
 
 	addr := fmt.Sprintf(":%d", s.port)
 	log.Printf("🌐 Web UI: http://localhost%s", addr)

@@ -10,11 +10,5 @@ Restart=on-failure
 RestartSec=5
 Environment="HOME=%h"
 
-# Security hardening
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=%h/.aigo
-
 [Install]
 WantedBy=default.target
